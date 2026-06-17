@@ -17,6 +17,8 @@ export default function AdminPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [uploadFolder, setUploadFolder] = useState("images");
   const [activeFolder, setActiveFolder] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   const folders = ["All", ...Array.from(new Set(images.map((i) => i.folder || "images")))];
 
@@ -92,8 +94,11 @@ export default function AdminPanel() {
     setSelectedIds(next);
   };
 
+  const displayedImages = images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder);
+  const totalPages = Math.ceil(displayedImages.length / itemsPerPage);
+  const currentImages = displayedImages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const toggleSelectAll = () => {
-    const displayedImages = images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder);
     if (selectedIds.size === displayedImages.length) setSelectedIds(new Set());
     else setSelectedIds(new Set(displayedImages.map((i) => i.id)));
   };
@@ -276,7 +281,10 @@ export default function AdminPanel() {
               <div className="flex gap-2 flex-wrap flex-1 min-w-[200px]">
                 <select 
                   value={activeFolder} 
-                  onChange={(e) => setActiveFolder(e.target.value)}
+                  onChange={(e) => {
+                    setActiveFolder(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="bg-white border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] font-semibold text-[var(--color-text-main)] outline-none focus:border-[var(--color-brand-500)]"
                 >
                   {folders.map(f => (
@@ -308,39 +316,71 @@ export default function AdminPanel() {
                 <div className="animate-spin w-8 h-8 border-4 border-[var(--color-brand-500)] border-t-transparent rounded-full"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
-                <div
-                  className="col-span-full mb-1 flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold"
-                  onClick={toggleSelectAll}
-                >
-                  <input type="checkbox" checked={selectedIds.size === images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder).length && images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder).length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
-                  Select All
-                </div>
-                {images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder).map(img => (
-                  <div 
-                    key={img.id} 
-                    className={`card group !p-0 cursor-pointer transition-all ${selectedIds.has(img.id) ? 'border-[var(--color-brand-500)] ring-2 ring-[var(--color-brand-500)]/20' : 'hover:border-[var(--color-brand-500)]'}`}
-                    onClick={() => toggleSelect(img.id)}
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5 pb-4">
+                  <div
+                    className="col-span-full mb-1 flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold"
+                    onClick={toggleSelectAll}
                   >
-                    <div className="relative h-[120px] bg-[#f0f4f3] flex items-center justify-center overflow-hidden shrink-0">
-                      <img src={img.path} alt={img.originalName} loading="lazy" className="w-full h-full object-cover" />
-                      {selectedIds.has(img.id) && (
-                        <div className="absolute top-2 right-2 w-5 h-5 bg-[var(--color-brand-500)] text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm z-10">
-                           <Check size={12} strokeWidth={4} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 flex-1 flex flex-col justify-center">
-                      <div className="text-[12px] font-semibold mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)]">
-                         {img.originalName}
-                      </div>
-                      <div className="text-[11px] text-[var(--color-text-muted)]">
-                         {(img.size / 1024 / 1024).toFixed(1)} MB
-                      </div>
-                    </div>
+                    <input type="checkbox" checked={selectedIds.size === displayedImages.length && displayedImages.length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
+                    Select All
                   </div>
-                ))}
-              </div>
+                  {currentImages.map(img => (
+                    <div 
+                      key={img.id} 
+                      className={`card group !p-0 cursor-pointer transition-all ${selectedIds.has(img.id) ? 'border-[var(--color-brand-500)] ring-2 ring-[var(--color-brand-500)]/20' : 'hover:border-[var(--color-brand-500)]'}`}
+                      onClick={() => toggleSelect(img.id)}
+                    >
+                      <div className="relative h-[120px] bg-[#f0f4f3] flex items-center justify-center overflow-hidden shrink-0 rounded-t-[19px]">
+                        <img src={img.path} alt={img.originalName} loading="lazy" className="w-full h-full object-cover rounded-t-[19px]" />
+                        {selectedIds.has(img.id) && (
+                          <div className="absolute top-2 right-2 w-5 h-5 bg-[var(--color-brand-500)] text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm z-10">
+                             <Check size={12} strokeWidth={4} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 flex-1 flex flex-col justify-center">
+                        <div className="text-[12px] font-semibold mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)]">
+                           {img.originalName}
+                        </div>
+                        <div className="text-[11px] text-[var(--color-text-muted)]">
+                           {(img.size / 1024 / 1024).toFixed(1)} MB
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-4">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-[8px] border border-[var(--color-border-main)] disabled:opacity-50 font-semibold text-[14px] hover:bg-gray-50"
+                    >
+                      Prev
+                    </button>
+                    <div className="flex gap-1 flex-wrap">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-8 h-8 rounded-[8px] font-bold text-[14px] flex items-center justify-center transition-colors ${currentPage === pageNum ? 'bg-[var(--color-brand-500)] text-white' : 'hover:bg-gray-50 text-[var(--color-text-main)] border border-transparent hover:border-[var(--color-border-main)]'}`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 rounded-[8px] border border-[var(--color-border-main)] disabled:opacity-50 font-semibold text-[14px] hover:bg-gray-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

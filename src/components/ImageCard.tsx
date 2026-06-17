@@ -61,19 +61,19 @@ export default function ImageCard({ image }: ImageCardProps) {
 
   return (
     <div 
-      className="card group flex flex-col h-full cursor-pointer transition-all hover:shadow-sm"
+      className="card group relative flex flex-col h-full cursor-pointer transition-all hover:shadow-sm !overflow-visible rounded-[20px] hover:z-50"
       onMouseLeave={() => setShowOptions(false)}
     >
-      <div className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center overflow-hidden shrink-0">
+      <div className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px]">
         <img
           src={image.path}
           alt={image.originalName}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover rounded-t-[19px]"
         />
         
         {/* Overlay */}
-        <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5">
+        <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5 rounded-t-[19px]">
           <div className="relative w-full flex justify-center">
             <button 
               onClick={() => setShowOptions(!showOptions)}

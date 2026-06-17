@@ -10,6 +10,8 @@ export default function GuestGallery() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFolder, setActiveFolder] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const { token, role, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -42,6 +44,9 @@ export default function GuestGallery() {
 
   const folders = ["All", ...Array.from(new Set(images.map((i) => i.folder || "images")))];
   const displayedImages = images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder);
+  
+  const totalPages = Math.ceil(displayedImages.length / itemsPerPage);
+  const currentImages = displayedImages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -56,11 +61,6 @@ export default function GuestGallery() {
             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2 uppercase">{role}</span>
           </div>
           <div className="flex items-center gap-2">
-            {role !== "admin" && (
-              <Link to="/login" className="btn-secondary !bg-transparent hover:!bg-gray-50 !border-transparent">
-                <Settings size={16} /> Admin Login
-              </Link>
-            )}
             {role === "admin" && (
               <Link to="/admin" className="btn-secondary !bg-transparent hover:!bg-gray-50 !border-transparent">
                 <Settings size={16} /> Admin Panel
@@ -77,28 +77,68 @@ export default function GuestGallery() {
       <main className="max-w-7xl mx-auto px-8 py-8 w-full flex-1">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-bold text-[24px] text-[var(--color-text-main)]">Gallery</h2>
-          <select 
-            value={activeFolder} 
-            onChange={(e) => setActiveFolder(e.target.value)}
-            className="bg-white border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] font-semibold text-[var(--color-text-main)] outline-none focus:border-[var(--color-brand-500)]"
-          >
-            {folders.map(f => (
-              <option key={f} value={f}>{f === "All" ? "All Folders" : f}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-4">
+            <span className="text-[14px] text-[var(--color-text-muted)] font-semibold">
+              {displayedImages.length} items
+            </span>
+            <select 
+              value={activeFolder} 
+              onChange={(e) => {
+                setActiveFolder(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] font-semibold text-[var(--color-text-main)] outline-none focus:border-[var(--color-brand-500)]"
+            >
+              {folders.map(f => (
+                <option key={f} value={f}>{f === "All" ? "All Folders" : f}</option>
+              ))}
+            </select>
+          </div>
         </div>
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin w-8 h-8 border-4 border-[var(--color-brand-500)] border-t-transparent rounded-full"></div>
           </div>
         ) : displayedImages.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-            {displayedImages.map((img) => (
-              <div key={img.id}>
-                <ImageCard image={img} />
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
+              {currentImages.map((img) => (
+                <div key={img.id}>
+                  <ImageCard image={img} />
+                </div>
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-8">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-[8px] border border-[var(--color-border-main)] disabled:opacity-50 font-semibold text-[14px] hover:bg-gray-50"
+                >
+                  Prev
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-[8px] font-bold text-[14px] flex items-center justify-center transition-colors ${currentPage === pageNum ? 'bg-[var(--color-brand-500)] text-white' : 'hover:bg-gray-50 text-[var(--color-text-main)] border border-transparent hover:border-[var(--color-border-main)]'}`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-[8px] border border-[var(--color-border-main)] disabled:opacity-50 font-semibold text-[14px] hover:bg-gray-50"
+                >
+                  Next
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-20 bg-white rounded-[20px] border border-[var(--color-border-main)]">
             <div className="text-[var(--color-text-muted)] mb-2">No images in the gallery yet.</div>

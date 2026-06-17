@@ -89,7 +89,10 @@ app.get("/api/images", requireAuth, async (req, res) => {
   if (isActive) {
     try {
       const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/images`;
-      const r = await fetch(url);
+      const { token } = getGitConfig();
+      const headers: Record<string, string> = {};
+      if (token) headers["PRIVATE-TOKEN"] = token;
+      const r = await fetch(url, { headers });
       if (r.ok) {
         const files = await r.json();
         let images = [];
@@ -147,7 +150,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
       
       const gitRes = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": token },
         body: JSON.stringify({
           access_token: token,
           content: content,
@@ -213,15 +216,15 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
 
     try {
       // We need to fetch the file path first because delete requires the path and sha
-      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/images`;
-      const r = await fetch(listUrl);
+      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/images?access_token=${token}`;
+      const r = await fetch(listUrl, { headers: { "PRIVATE-TOKEN": token } });
       if (r.ok) {
         const files = await r.json();
         const fileToDel = files.find((f: any) => f.sha === id);
         if (fileToDel) {
           const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${fileToDel.path}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": token },
             body: JSON.stringify({
               access_token: token,
               message: `Delete ${fileToDel.name}`,
