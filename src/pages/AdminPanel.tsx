@@ -159,13 +159,23 @@ export default function AdminPanel() {
 
   const handleProcessQueue = async () => {
     const pendingTasks = tasks.filter(t => t.status === "pending");
-    for (const task of pendingTasks) {
-      try {
-        await uploadFile(task);
-      } catch (e) {
-        // Continue with others
+    const CONCURRENCY_LIMIT = 3;
+    let i = 0;
+    
+    const workers = Array(CONCURRENCY_LIMIT).fill(null).map(async () => {
+      while (i < pendingTasks.length) {
+        const task = pendingTasks[i++];
+        if (task) {
+          try {
+            await uploadFile(task);
+          } catch (e) {
+            // Continue with others
+          }
+        }
       }
-    }
+    });
+
+    await Promise.all(workers);
     fetchImages();
   };
 
