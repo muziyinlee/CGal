@@ -5,6 +5,7 @@ import { useUploader } from "../hooks/useUploader";
 import type { ImageData } from "../types";
 import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check } from "lucide-react";
 import JSZip from "jszip";
+import Footer from "../components/Footer";
 
 export default function AdminPanel() {
   const { token, role, logout } = useAuth();
@@ -344,6 +345,8 @@ export default function AdminPanel() {
           </div>
         </div>
       </main>
+
+      <Footer />
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

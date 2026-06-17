@@ -4,6 +4,7 @@ import type { ImageData } from "../types";
 import { Link, useNavigate } from "react-router-dom";
 import { Settings, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import Footer from "../components/Footer";
 
 export default function GuestGallery() {
   const [images, setImages] = useState<ImageData[]>([]);
@@ -105,6 +106,8 @@ export default function GuestGallery() {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

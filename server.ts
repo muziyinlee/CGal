@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import cors from "cors";
-import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import multer from "multer";
 
@@ -17,15 +16,20 @@ app.use(cors());
 app.use(express.json());
 
 // Local Database Fallback Config
-const DATA_DIR = path.join(process.cwd(), "data");
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// If deploying on Serverless environments like Vercel, the filesystem is read-only, we fallback to /tmp
+const DATA_DIR = process.env.VERCEL ? "/tmp/data" : path.join(process.cwd(), "data");
+const UPLOAD_DIR = process.env.VERCEL ? "/tmp/uploads" : path.join(process.cwd(), "uploads");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 
 if (!USE_GITCODE) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ images: [] }, null, 2));
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    if (!fs.existsSync(DB_FILE)) {
+      fs.writeFileSync(DB_FILE, JSON.stringify({ images: [] }, null, 2));
+    }
+  } catch (e) {
+    console.warn("Could not create local directories (expected on read-only environments).");
   }
 }
 
@@ -74,7 +78,12 @@ async function writeDb(data: any) {
       console.error("GitCode write err:", e);
     }
   } else {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    try {
+      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    } catch (e) {
+      console.error("Local file write err:", e);
+    }
   }
 }
 
@@ -82,6 +91,11 @@ const storage = USE_GITCODE
   ? multer.memoryStorage() 
   : multer.diskStorage({
       destination: function (req, file, cb) {
+        try {
+          if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        } catch (e) {
+          console.error("Local upload dir error:", e);
+        }
         cb(null, UPLOAD_DIR);
       },
       filename: function (req, file, cb) {
@@ -147,7 +161,13 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
   // MD5 deduplication check
   const existing = db.images.find((img: any) => img.md5 === md5);
   if (existing) {
-    if (!USE_GITCODE) fs.unlinkSync(req.file.path);
+    if (!USE_GITCODE) {
+      try {
+         if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      } catch (e) {
+         console.error("Unlink error:", e);
+      }
+    }
     return res.json({ success: true, message: "File already exists", image: existing });
   }
 
@@ -317,11 +337,16 @@ app.use("/api/files", express.static(UPLOAD_DIR));
 // --- Vite Middleware & SPA Fallback ---
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.error("Failed to load Vite. Running without frontend middleware in dev mode.");
+    }
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Lock } from "lucide-react";
+import Footer from "../components/Footer";
 
 export default function AdminLogin() {
   const [password, setPassword] = useState("");
@@ -72,6 +73,9 @@ export default function AdminLogin() {
             {loading ? "Authenticating..." : "Enter"}
           </button>
         </form>
+      </div>
+      <div className="absolute bottom-0 inset-x-0">
+        <Footer />
       </div>
     </div>
   );
