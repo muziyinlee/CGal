@@ -18,6 +18,19 @@
    - Output Directory: `dist`
 5. **部署**：点击 Deploy 即刻完成自动化部署。
 
+> **⚠️ 常见错误：部署后登录出现 HTTP 405 (Method Not Allowed)？**
+> 
+> **原因分析**：这是由于前端被部署到了 Vercel 等静态托管平台，由于我们的纯静态重写规则，导致您的 `POST /api/login` 请求被当作访问静态页面的 GET 请求处理，引发 405 报错。
+> 更核心的原因是：Vercel 是**无状态 Serverless** 平台，不支持直接运行本地的文件读写后台服务（例如 Node Express 或 FastAPI），您单纯部署前端上去后，后台服务（负责验证密码和读写本地 `data/db.json`）并未启动。
+> 
+> **解决方案**：
+> 1. 我们已更新了项目中 `vercel.json` 的路由规则，避免将 `/api` 的请求拦截到前端静态文件。
+> 2. 但由于应用依赖本地文件持久化存储 (`db.json` 和 `uploads/`)，**不推荐**将此项目以后端模式直接部署在 Vercel（每次请求会导致文件重置，图片丢失）。
+> 3. **最佳部署方案**：
+>    - **本地独立运行**：使用附带的 `start.bat` 一键启动或打包为 Windows `.exe` 单文件。
+>    - **云端服务器部署**：将代码放置在自己的 VPS/云服务器上（如阿里云/腾讯云 Linux），使用 `pm2 start server.ts --interpreter tsx` 或 Docker 后台运行。
+>    - **前后端分离部署方案**：将前端（`dist`）部署至 Vercel，将后端服务端部署至 Railway/Render/自己的云服务器，并在前端环境变量中设置相应的 API 跨域转发。
+
 ### 🌐 Cloudflare 域名解析与 418 报错处理 (重要)
 
 当我们在 Vercel 上部署并使用 **Cloudflare** 作为 DNS 和 CDN 服务时，在下载某些类型的文件或进行批量下载时，偶尔会遇到 HTTP `418 I'm a teapot` 或浏览器无响应的问题。这通常是因为 Cloudflare 的 WAF (Web Application Firewall) 防火墙规则拦截了机器人类请求，或是 Vercel 拦截了非规范的请求载荷。
