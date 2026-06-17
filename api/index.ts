@@ -275,20 +275,69 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
 // Proxy Download
 app.get("/api/proxy_download", requireAuth, async (req, res) => {
   let targetPath = req.query.url as string;
-  if (!targetPath) return res.status(400).send("No url provided");
+  let filePath = req.query.path as string;
   
-  if (targetPath.startsWith("https://")) {
+  if (!targetPath && !filePath) {
+     // try to extract path from targetPath if it matches raw.gitcode.com
+     if (targetPath && targetPath.includes("raw.gitcode.com") && targetPath.includes("/blobs/")) {
+       const parts = targetPath.split("/blobs/")[1].split("/");
+       parts.shift(); // remove sha
+       filePath = parts.join("/");
+     }
+  }
+
+  // extract filepath from raw url if missing
+  if (!filePath && targetPath && targetPath.includes("raw.gitcode.com")) {
+      const match = targetPath.match(/\/blobs\/[a-f0-9]+\/(.*)/);
+      if (match && match[1]) filePath = match[1];
+  }
+
+  if (!targetPath && !filePath) return res.status(400).send("No url or path provided");
+  
+  const { token, projectId, isActive } = getGitConfig();
+  
+  if (filePath && isActive) {
+     try {
+        const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${filePath}`;
+        const headers: Record<string, string> = {};
+        if (token) headers["PRIVATE-TOKEN"] = token;
+        
+        const r = await fetch(url + (token ? `?access_token=${token}` : ''), { headers });
+        if (r.ok) {
+           const data = await r.json();
+           if (data.content) {
+             const buf = Buffer.from(data.content, data.encoding || 'base64');
+             const ext = path.extname(filePath).toLowerCase();
+             let mime = 'image/jpeg';
+             if (ext === '.png') mime = 'image/png';
+             else if (ext === '.gif') mime = 'image/gif';
+             else if (ext === '.webp') mime = 'image/webp';
+             else if (ext === '.svg') mime = 'image/svg+xml';
+             
+             res.setHeader('Content-Type', mime);
+             res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+             return res.end(buf);
+           }
+        }
+     } catch (e) {
+        console.error("Error fetching via GitCode API", e);
+     }
+  }
+
+  if (targetPath && targetPath.startsWith("https://")) {
     try {
-       const { token } = getGitConfig();
        const headers: Record<string, string> = {};
        if (token && targetPath.includes("gitcode.com")) {
          headers["PRIVATE-TOKEN"] = token;
+         if (!targetPath.includes("private_token=")) {
+             targetPath += (targetPath.includes("?") ? "&" : "?") + `private_token=${token}`;
+         }
        }
        const fileRes = await fetch(targetPath, { headers });
        if (!fileRes.ok) return res.status(404).send("File not found on GitCode");
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
-       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
        res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
        
        const arrayBuffer = await fileRes.arrayBuffer();
@@ -296,12 +345,12 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
      } catch (err) {
        res.status(500).send("Error fetching from GitCode");
      }
-  } else if (targetPath.startsWith("/api/files/")) {
+  } else if (targetPath && targetPath.startsWith("/api/files/")) {
        const filename = path.basename(targetPath);
-       const filePath = path.join(UPLOAD_DIR, filename);
-       if (fs.existsSync(filePath)) {
-         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-         res.download(filePath);
+       const localPath = path.join(UPLOAD_DIR, filename);
+       if (fs.existsSync(localPath)) {
+         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+         res.sendFile(localPath);
        } else {
          res.status(404).send("File not found");
        }

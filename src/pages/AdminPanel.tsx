@@ -344,7 +344,7 @@ export default function AdminPanel() {
                         )}
                         <button 
                           onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
-                          className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600"
+                          className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 transition-opacity z-10 hover:bg-red-600"
                         >
                           <Trash2 size={14} />
                         </button>

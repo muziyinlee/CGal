@@ -93,7 +93,7 @@ export default function ImageCard({ image }: ImageCardProps) {
         <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5 rounded-t-[19px] z-10">
           <div className="relative w-full flex justify-center">
             <button 
-              onClick={() => setShowOptions(!showOptions)}
+              onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
               className="hover-btn primary"
               title="Copy Link"
             >
@@ -101,23 +101,23 @@ export default function ImageCard({ image }: ImageCardProps) {
             </button>
             
             {showOptions && (
-              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[140px] bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.15)] border border-[var(--color-border-main)] py-1 flex flex-col z-[100]">
+              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[140px] bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.15)] border border-[var(--color-border-main)] py-1 flex flex-col z-[100]" onClick={e => e.stopPropagation()}>
                 <button 
-                  onClick={() => copyToClipboard("url")}
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard("url"); }}
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
                 >
                   {copied === "url" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
                   URL
                 </button>
                 <button 
-                  onClick={() => copyToClipboard("html")}
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard("html"); }}
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
                 >
                   {copied === "html" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
                   HTML
                 </button>
                 <button 
-                  onClick={() => copyToClipboard("md")}
+                  onClick={(e) => { e.stopPropagation(); copyToClipboard("md"); }}
                   className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
                 >
                   {copied === "md" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
@@ -127,7 +127,7 @@ export default function ImageCard({ image }: ImageCardProps) {
             )}
           </div>
           <button 
-            onClick={handleDownload}
+            onClick={(e) => { e.stopPropagation(); handleDownload(); }}
             className="hover-btn"
             title="Download Original"
           >

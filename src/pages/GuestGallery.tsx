@@ -167,8 +167,8 @@ export default function GuestGallery() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
               {currentImages.map((img) => (
-                <div key={img.id} className="relative group/wrapper">
-                  <div className="absolute top-2 left-2 z-10 opacity-0 group-hover/wrapper:opacity-100 transition-opacity">
+                <div key={img.id} className="relative group/wrapper cursor-pointer" onClick={() => toggleSelect(img.id)}>
+                  <div className={`absolute top-2 left-2 z-10 transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
                     <input 
                       type="checkbox" 
                       checked={selectedIds.has(img.id)}
