@@ -259,7 +259,8 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
             body: JSON.stringify({
               access_token: token,
               message: `Delete ${fileToDel.name}`,
-              sha: fileToDel.sha
+              sha: fileToDel.sha,
+              branch: "master"
             })
           });
           if (delRes.ok) {

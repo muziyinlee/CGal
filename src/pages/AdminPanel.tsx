@@ -6,6 +6,7 @@ import type { ImageData } from "../types";
 import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check, Settings } from "lucide-react";
 import JSZip from "jszip";
 import Footer from "../components/Footer";
+import ImageCard from "../components/ImageCard";
 
 export default function AdminPanel() {
   const { token, role, logout } = useAuth();
@@ -139,7 +140,7 @@ export default function AdminPanel() {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    const files = (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith("image/"));
     if (files.length > 0) {
       addFiles(files, uploadFolder);
     }
@@ -276,9 +277,6 @@ export default function AdminPanel() {
             <span className="bg-[var(--color-accent-blue-light)] text-[var(--color-accent-blue)] px-3 py-1 rounded-full text-[12px] font-bold ml-2">ADMIN</span>
           </div>
           <div className="flex gap-4 items-center">
-            <button onClick={() => navigate("/")} className="text-sm font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]">
-              View Gallery
-            </button>
             <button onClick={handleLogout} className="text-sm font-semibold text-[var(--color-danger)] hover:opacity-80 flex items-center gap-1">
               <LogOut size={16} /> Logout
             </button>
@@ -289,7 +287,7 @@ export default function AdminPanel() {
       <main className="max-w-7xl mx-auto px-8 py-8 w-full flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Left Col: Upload Zone */}
-        <div className="lg:col-span-1 flex flex-col gap-6">
+        <div className="lg:col-span-1 lg:max-w-xs w-full flex flex-col gap-6">
           <div className="card !p-0">
             <div className="border-b border-[var(--color-border-main)] p-4 flex items-center gap-2">
               <UploadCloud size={18} className="text-[var(--color-text-main)]" />
@@ -361,26 +359,26 @@ export default function AdminPanel() {
                <h2 className="font-semibold text-[var(--color-text-main)] text-[14px]">Site Settings</h2>
              </div>
              
-             <div className="p-4 flex flex-col gap-4">
+            <div className="p-4 flex flex-col gap-5">
                <div>
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Site Title</label>
                  <div className="flex gap-2">
-                   <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="input-capsule flex-1 !py-1.5" />
-                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-auto">Save</button>
+                   <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="input-capsule flex-1 !py-1.5 min-w-0" />
+                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-auto shrink-0">Save</button>
                  </div>
                </div>
                
                <div className="pt-4 border-t border-[var(--color-border-main)]">
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Admin Pass</label>
                  <div className="flex gap-2 mb-4">
-                   <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5" />
-                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto">Update</button>
+                   <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
+                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto shrink-0">Update</button>
                  </div>
                  
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Guest Pass</label>
                  <div className="flex gap-2">
-                   <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5" />
-                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto">Update</button>
+                   <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
+                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto shrink-0">Update</button>
                  </div>
                </div>
              </div>
@@ -388,7 +386,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Right Col: Manage Zone */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 min-w-0">
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -441,42 +439,31 @@ export default function AdminPanel() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5 pb-4">
-                  <div
-                    className="col-span-full mb-1 flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold"
-                    onClick={toggleSelectAll}
-                  >
-                    <input type="checkbox" checked={selectedIds.size === displayedImages.length && displayedImages.length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
-                    Select All
-                  </div>
-                  {currentImages.map(img => (
-                    <div 
-                      key={img.id} 
-                      className={`card group !p-0 cursor-pointer transition-all ${selectedIds.has(img.id) ? 'border-[var(--color-brand-500)] ring-2 ring-[var(--color-brand-500)]/20' : 'hover:border-[var(--color-brand-500)]'}`}
-                      onClick={() => toggleSelect(img.id)}
-                    >
-                      <div className="relative h-[120px] bg-[#f0f4f3] flex items-center justify-center overflow-hidden shrink-0 rounded-t-[19px]">
-                        <img src={img.path.includes("/api/proxy_download") ? `${img.path}&t=${token}` : img.path} alt={img.originalName} loading="lazy" className="w-full h-full object-cover rounded-t-[19px]" />
-                        {selectedIds.has(img.id) && (
-                          <div className="absolute top-2 right-2 w-5 h-5 bg-[var(--color-brand-500)] text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm z-10">
-                             <Check size={12} strokeWidth={4} />
-                          </div>
-                        )}
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
-                          className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 transition-opacity z-10 hover:bg-red-600"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                <div className="mb-4 flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold" onClick={toggleSelectAll}>
+                  <input type="checkbox" checked={selectedIds.size === displayedImages.length && displayedImages.length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
+                  Select All
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
+                  {currentImages.map((img) => (
+                    <div key={img.id} className="relative group/wrapper cursor-pointer" onClick={() => toggleSelect(img.id)}>
+                      <div className={`absolute top-2 left-2 z-[20] transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.has(img.id)}
+                          readOnly
+                          className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm pointer-events-none"
+                        />
                       </div>
-                      <div className="p-3 flex-1 flex flex-col justify-center">
-                        <div className="text-[12px] font-semibold mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)]">
-                           {img.originalName}
-                        </div>
-                        <div className="text-[11px] text-[var(--color-text-muted)]">
-                           {(img.size / 1024 / 1024).toFixed(1)} MB
-                        </div>
-                      </div>
+                      {selectedIds.has(img.id) && (
+                        <div className="absolute inset-0 bg-[var(--color-brand-500)]/10 rounded-[20px] pointer-events-none z-20 border-2 border-[var(--color-brand-500)]"></div>
+                      )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
+                        className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity z-20 hover:bg-red-600"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <ImageCard image={img} />
                     </div>
                   ))}
                 </div>

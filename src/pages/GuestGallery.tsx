@@ -24,6 +24,11 @@ export default function GuestGallery() {
       navigate("/login");
       return;
     }
+    
+    if (role === "admin") {
+      navigate("/admin");
+      return;
+    }
 
     fetch("/api/config")
       .then(res => res.json())
