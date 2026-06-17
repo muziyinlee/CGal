@@ -6,9 +6,10 @@ interface ImageCardProps {
   image: ImageData;
   actionLeft?: React.ReactNode;
   actionRight?: React.ReactNode;
+  onClick?: () => void;
 }
 
-export default function ImageCard({ image, actionLeft, actionRight }: ImageCardProps) {
+export default function ImageCard({ image, actionLeft, actionRight, onClick }: ImageCardProps) {
   const [showOptions, setShowOptions] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -87,6 +88,7 @@ export default function ImageCard({ image, actionLeft, actionRight }: ImageCardP
     <div 
       className="card group relative flex flex-col h-full cursor-pointer transition-all hover:shadow-sm !overflow-visible rounded-[20px] hover:z-50"
       onMouseLeave={() => setShowOptions(false)}
+      onClick={onClick}
     >
       <div className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px]">
         <img

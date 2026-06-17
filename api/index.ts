@@ -30,12 +30,12 @@ async function readLocalDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      if (!data.siteConfig) data.siteConfig = { title: "AIGal" };
+      if (!data.siteConfig) data.siteConfig = { title: "CGal" };
       if (!data.passwords) data.passwords = { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" };
       return data;
     }
   } catch(e) {}
-  return { images: [], siteConfig: { title: "AIGal" }, passwords: { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" } };
+  return { images: [], siteConfig: { title: "CGal" }, passwords: { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" } };
 }
 
 async function writeLocalDb(data: any) {

@@ -52,7 +52,7 @@ export default function AdminLogin() {
           <div className="w-12 h-12 rounded-[12px] bg-[var(--color-brand-100)] flex items-center justify-center mb-4">
             <Lock className="text-[var(--color-brand-500)]" size={24} />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">Access Gallery</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">Access CGal</h2>
           <p className="text-[14px] text-[var(--color-text-muted)] mt-2">Enter admin or guest password</p>
         </div>
 

@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import SparkMD5 from "spark-md5";
+import imageCompression from "browser-image-compression";
 
 interface FileUploadTask {
   id: string;
   file: File;
   folder: string;
   progress: number;
-  status: "pending" | "hashing" | "uploading" | "success" | "error";
+  status: "pending" | "compressing" | "hashing" | "uploading" | "success" | "error";
   error?: string;
 }
 
@@ -53,21 +54,37 @@ export function useUploader(token: string) {
   };
 
   const uploadFile = async (task: FileUploadTask) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: "hashing" } : t))
-    );
-
     try {
-      const md5 = await computeMD5(task.file);
+      let finalFile = task.file;
+
+      if (task.file.type.startsWith("image/") && task.file.size > 500 * 1024) {
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "compressing" } : t)));
+        try {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true
+          };
+          finalFile = await imageCompression(task.file, options) as File;
+        } catch (e) {
+          console.warn("Compression failed, using original file", e);
+        }
+      }
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: "hashing" } : t))
+      );
+
+      const md5 = await computeMD5(finalFile);
       
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "uploading", progress: 10 } : t))
       );
 
       const formData = new FormData();
-      formData.append("file", task.file);
+      formData.append("file", finalFile);
       formData.append("md5", md5);
-      formData.append("originalName", task.file.name);
+      formData.append("originalName", finalFile.name);
       formData.append("folder", task.folder);
 
       const res = await fetch("/api/upload", {
@@ -106,7 +123,7 @@ export function useUploader(token: string) {
   };
 
   const clearDone = () => {
-    setTasks(tasks.filter(t => t.status === "pending" || t.status === "uploading" || t.status === "hashing"));
+    setTasks(tasks.filter(t => t.status === "pending" || t.status === "uploading" || t.status === "hashing" || t.status === "compressing"));
   };
 
   return { tasks, addFiles, uploadFile, clearDone };

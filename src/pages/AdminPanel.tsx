@@ -50,7 +50,7 @@ export default function AdminPanel() {
       const res = await fetch("/api/config");
       const data = await res.json();
       if (data.success && data.siteConfig) {
-        setSiteTitle(data.siteConfig.title === "AIGal" ? "" : (data.siteConfig.title || ""));
+        setSiteTitle(data.siteConfig.title === "CGal" ? "" : (data.siteConfig.title || ""));
         if (data.siteConfig.title) {
           document.title = data.siteConfig.title + " - Admin Panel";
         }
@@ -59,7 +59,7 @@ export default function AdminPanel() {
   };
 
   const handleSaveTitle = async () => {
-    const finalTitle = siteTitle.trim() || "AIGal";
+    const finalTitle = siteTitle.trim() || "CGal";
     try {
       await fetch("/api/config", {
         method: "POST",
@@ -67,7 +67,7 @@ export default function AdminPanel() {
         body: JSON.stringify({ title: finalTitle })
       });
       alert("Site title updated successfully.");
-      if (finalTitle === "AIGal") setSiteTitle("");
+      if (finalTitle === "CGal") setSiteTitle("");
       document.title = finalTitle + " - Admin Panel";
     } catch {
       alert("Failed to update site title.");
@@ -285,9 +285,9 @@ export default function AdminPanel() {
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--color-brand-500)] flex items-center justify-center text-white font-bold text-sm">
-              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'A'}</span>
+              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'C'}</span>
             </div>
-            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle ? `${siteTitle} Admin` : "AIGal Admin"}</h1>
+            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle ? `${siteTitle} Admin` : "CGal Admin"}</h1>
             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2">ADMIN</span>
           </div>
           <div className="flex gap-4 items-center">
@@ -308,15 +308,26 @@ export default function AdminPanel() {
               <h2 className="font-semibold text-[var(--color-text-main)] text-[14px]">Upload Center</h2>
             </div>
             
-            <div className="p-4 border-b border-[var(--color-border-main)]">
-              <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Target Folder</label>
+            <div className="p-4 border-b border-[var(--color-border-main)] relative">
+              <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Target Category</label>
               <input 
                 type="text" 
                 value={uploadFolder}
                 onChange={(e) => setUploadFolder(e.target.value)}
-                className="w-full bg-[var(--color-bg-base)] border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] outline-none focus:border-[var(--color-brand-500)] transition-colors"
-                placeholder="e.g. images/aigal"
+                className="w-full bg-[var(--color-bg-base)] border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] outline-none focus:border-[var(--color-brand-500)] transition-colors mb-3"
+                placeholder="e.g. images/cgal"
               />
+              <div className="flex flex-wrap gap-1.5">
+                {folders.filter(f => f !== "All").map(f => (
+                  <button 
+                    key={f}
+                    onClick={() => setUploadFolder(f)}
+                    className="text-[11px] px-2 py-1 bg-gray-100 hover:bg-[var(--color-brand-100)] hover:text-[var(--color-brand-500)] rounded-full text-gray-600 transition-colors"
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
             
             <div 
@@ -355,6 +366,7 @@ export default function AdminPanel() {
                       <div className="truncate text-[12px] font-semibold text-[var(--color-text-main)] max-w-[120px]">{task.file.name}</div>
                       <div className="text-[12px] font-semibold">
                         {task.status === "pending" && <span className="text-[var(--color-text-muted)]">Wait</span>}
+                        {task.status === "compressing" && <span className="text-[var(--color-accent-blue)] animate-pulse">Comp</span>}
                         {task.status === "hashing" && <span className="text-[var(--color-accent-blue)] animate-pulse">Hash</span>}
                         {task.status === "uploading" && <span className="text-[var(--color-accent-blue)] animate-pulse">Up</span>}
                         {task.status === "success" && <span className="text-[var(--color-brand-500)]">Done</span>}
@@ -388,7 +400,7 @@ export default function AdminPanel() {
                      type="text" 
                      value={siteTitle} 
                      onChange={e => setSiteTitle(e.target.value)} 
-                     placeholder="AIGal" 
+                     placeholder="CGal" 
                      className="input-capsule flex-1 h-9 min-w-0" 
                    />
                    <button onClick={handleSaveTitle} className="btn-primary h-9 flex-none !px-4 font-semibold text-[13px] flex items-center justify-center">Save</button>
@@ -421,19 +433,23 @@ export default function AdminPanel() {
                 <h2 className="font-bold text-[24px] text-[var(--color-text-main)] m-0">Library</h2>
                 <p className="text-[14px] text-[var(--color-text-muted)] mt-1">{images.length} items preserved</p>
               </div>
-              <div className="flex gap-2 flex-wrap flex-1 min-w-[200px]">
-                <select 
-                  value={activeFolder} 
-                  onChange={(e) => {
-                    setActiveFolder(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="bg-white border border-[var(--color-border-main)] rounded-[8px] px-3 py-2 text-[14px] font-semibold text-[var(--color-text-main)] outline-none focus:border-[var(--color-brand-500)]"
-                >
-                  {folders.map(f => (
-                    <option key={f} value={f}>{f === "All" ? "All Folders" : f}</option>
-                  ))}
-                </select>
+              <div className="flex flex-wrap gap-2 flex-1">
+                {folders.map(f => (
+                  <button
+                    key={f}
+                    onClick={() => {
+                      setActiveFolder(f);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
+                      activeFolder === f 
+                      ? "bg-[var(--color-brand-500)] text-white shadow-sm shadow-[var(--color-brand-500)]/20" 
+                      : "bg-white border border-[var(--color-border-main)] text-[var(--color-text-main)] hover:border-[var(--color-brand-500)]"
+                    }`}
+                  >
+                    {f === "All" ? "All Categories" : f}
+                  </button>
+                ))}
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={fetchImages} className="btn-secondary !px-4 hover:bg-[var(--color-bg-base)] text-[14px] font-semibold">
