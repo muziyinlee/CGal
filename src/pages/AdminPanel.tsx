@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUploader } from "../hooks/useUploader";
 import type { ImageData } from "../types";
-import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check, Settings } from "lucide-react";
+import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check, Settings, X } from "lucide-react";
 import JSZip from "jszip";
 import Footer from "../components/Footer";
 import ImageCard from "../components/ImageCard";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function AdminPanel() {
   const { token, role, logout } = useAuth();
@@ -35,6 +36,7 @@ export default function AdminPanel() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<ImageData | null>(null);
 
   useEffect(() => {
     if (!token || role !== "admin") {
@@ -523,6 +525,7 @@ export default function AdminPanel() {
                       )}
                       <ImageCard 
                         image={img} 
+                        onClick={() => setLightboxImage(img)}
                         actionLeft={
                           <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
                             <input 
@@ -630,6 +633,45 @@ export default function AdminPanel() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[var(--color-bg-base)]/90 backdrop-blur-md"
+            onClick={() => setLightboxImage(null)}
+          >
+            <button 
+              className="absolute top-6 right-6 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-[var(--color-text-main)] transition-colors"
+              onClick={() => setLightboxImage(null)}
+            >
+              <X size={24} />
+            </button>
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center shadow-2xl rounded-[20px] overflow-hidden bg-white/50 border border-[var(--color-border-main)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={(() => {
+                  const path = lightboxImage.path;
+                  if (path.includes("/api/proxy_download")) return `${path}&t=${token}`;
+                  return path;
+                })()} 
+                alt={lightboxImage.originalName}
+                loading="lazy"
+                className="max-w-full max-h-[85vh] object-contain rounded-[20px]"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

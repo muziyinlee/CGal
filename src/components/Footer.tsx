@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="w-full py-6 mt-auto shrink-0 bg-transparent">
       <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[13px] text-[var(--color-text-muted)]">
         <div>
-          &copy; {new Date().getFullYear()} CGal <span className="font-mono text-[11px] ml-1 bg-gray-100 px-1.5 py-0.5 rounded-full border border-gray-200">v1.2.0</span>
+          &copy; {new Date().getFullYear()} CGal <span className="font-mono text-[11px] ml-1 bg-gray-100 px-1.5 py-0.5 rounded-full border border-gray-200">v1.3.0</span>
         </div>
         <div className="flex items-center gap-4">
           <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-brand-500)] transition-colors underline decoration-dotted underline-offset-4">

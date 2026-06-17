@@ -1,6 +1,6 @@
 @echo off
 echo =========================================
-echo Clover Gallery - Local Server Setup
+echo CGal - Local Server Setup
 echo =========================================
 echo.
 echo Installing dependencies...
