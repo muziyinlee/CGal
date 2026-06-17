@@ -95,7 +95,9 @@ export default function AdminPanel() {
   const fetchImages = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/images");
+      const res = await fetch("/api/images", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setImages(data.images);
@@ -114,22 +116,30 @@ export default function AdminPanel() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    e.stopPropagation();
+    // Only set dragging to false if we are leaving the main container
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-    const files = (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith("image/"));
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
     if (files.length > 0) {
       addFiles(files, uploadFolder);
     }
