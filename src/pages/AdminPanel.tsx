@@ -154,8 +154,12 @@ export default function AdminPanel() {
     
     for (const img of imgsToDownload) {
       try {
+        let targetUrl = img.path;
+        if (!targetUrl.includes("/api/proxy_download")) {
+           targetUrl = `/api/proxy_download?url=${encodeURIComponent(img.path)}`;
+        }
         // Proxy fetch the file
-        const res = await fetch(`/api/proxy_download?url=${encodeURIComponent(img.path)}`, {
+        const res = await fetch(targetUrl, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error("Fetch failed");
@@ -332,12 +336,18 @@ export default function AdminPanel() {
                       onClick={() => toggleSelect(img.id)}
                     >
                       <div className="relative h-[120px] bg-[#f0f4f3] flex items-center justify-center overflow-hidden shrink-0 rounded-t-[19px]">
-                        <img src={img.path} alt={img.originalName} loading="lazy" className="w-full h-full object-cover rounded-t-[19px]" />
+                        <img src={img.path.includes("/api/proxy_download") ? `${img.path}&t=${token}` : img.path} alt={img.originalName} loading="lazy" className="w-full h-full object-cover rounded-t-[19px]" />
                         {selectedIds.has(img.id) && (
                           <div className="absolute top-2 right-2 w-5 h-5 bg-[var(--color-brand-500)] text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm z-10">
                              <Check size={12} strokeWidth={4} />
                           </div>
                         )}
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
+                          className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                       <div className="p-3 flex-1 flex flex-col justify-center">
                         <div className="text-[12px] font-semibold mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)]">

@@ -58,7 +58,10 @@ app.post("/api/login", (req, res) => {
 });
 
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  let token = req.headers.authorization?.split(" ")[1];
+  if (!token && req.query.t) {
+    token = req.query.t as string;
+  }
   if (token === "admin_token_xyz" || token === "guest_token_xyz") {
     next();
   } else {
@@ -67,7 +70,10 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
 };
 
 const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  let token = req.headers.authorization?.split(" ")[1];
+  if (!token && req.query.t) {
+    token = req.query.t as string;
+  }
   if (token === "admin_token_xyz") {
     next();
   } else {
@@ -101,7 +107,7 @@ app.get("/api/images", requireAuth, async (req, res) => {
             id: f.sha,
             originalName: f.name,
             md5: f.sha,
-            path: f.download_url,
+            path: `/api/proxy_download?url=${encodeURIComponent(f.download_url)}`,
             size: f.size || 0,
             mimetype: 'image/jpeg',
             folder: 'images',
@@ -273,7 +279,12 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
   
   if (targetPath.startsWith("https://")) {
     try {
-       const fileRes = await fetch(targetPath);
+       const { token } = getGitConfig();
+       const headers: Record<string, string> = {};
+       if (token && targetPath.includes("gitcode.com")) {
+         headers["PRIVATE-TOKEN"] = token;
+       }
+       const fileRes = await fetch(targetPath, { headers });
        if (!fileRes.ok) return res.status(404).send("File not found on GitCode");
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
