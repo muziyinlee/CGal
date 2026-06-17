@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUploader } from "../hooks/useUploader";
@@ -60,7 +60,7 @@ export default function AdminPanel() {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    const files = (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith("image/"));
     if (files.length > 0) {
       addFiles(files, uploadFolder);
     }
@@ -68,7 +68,7 @@ export default function AdminPanel() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const files = Array.from(e.target.files);
+      const files = Array.from(e.target.files) as File[];
       addFiles(files, uploadFolder);
     }
   };

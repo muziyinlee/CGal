@@ -12,7 +12,7 @@ export default function ImageCard({ image }: ImageCardProps) {
 
   const getAppUrl = () => {
     // Determine the base url
-    let url = import.meta.env.VITE_APP_URL || window.location.origin;
+    let url = (import.meta as any).env.VITE_APP_URL || window.location.origin;
     if (url.includes("APP_URL")) url = window.location.origin; // fallback if unresolved
     return url.replace(/\/$/, ""); 
   };
