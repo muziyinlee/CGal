@@ -34,13 +34,13 @@ async function readDb() {
     try {
       const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
       const branch = process.env.GITCODE_BRANCH || "main";
-      const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/data%2Fdb.json/raw?ref=${branch}`;
+      const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/data%2Fdb.json/raw?ref=${branch}`;
       const res = await fetch(url, { headers: { "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! }});
       if (res.ok) {
         return await res.json();
       } else if (res.status === 404) {
-        // Try to sync existing images from the repo if db.json doesn't exist
-        const treeUrl = `https://api.gitcode.com/api/v5/projects/${pId}/repository/tree?path=images&ref=${branch}&per_page=100`;
+        // Fallback: create initial db syncing images from repo 'images' directory
+        const treeUrl = `https://api.gitcode.com/api/v4/projects/${pId}/repository/tree?path=images&ref=${branch}&per_page=1000`;
         const treeRes = await fetch(treeUrl, { headers: { "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! }});
         if (treeRes.ok) {
           const files = await treeRes.json();
@@ -49,17 +49,18 @@ async function readDb() {
             .map((f: any) => ({
               id: Math.random().toString(36).substring(2, 9),
               originalName: f.name,
-              md5: f.id,
+              md5: f.md5 || f.id,
               path: `/api/view?url=${encodeURIComponent(f.path)}`,
               size: 0,
               mimetype: 'image/jpeg',
-              folder: 'All',
+              folder: 'images',
               createdAt: Date.now()
             }));
           const newDb = { images };
           await writeDb(newDb);
           return newDb;
         }
+        return { images: [] };
       }
     } catch (e) {
       console.error("GitCode read err:", e);
@@ -78,7 +79,7 @@ async function writeDb(data: any) {
     try {
       const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
       const branch = process.env.GITCODE_BRANCH || "main";
-      const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/data%2Fdb.json`;
+      const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/data%2Fdb.json`;
       const content = Buffer.from(JSON.stringify(data, null, 2)).toString("base64");
       
       const check = await fetch(`${url}?ref=${branch}`, { headers: { "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! }});
@@ -202,22 +203,28 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
     const filename = `${Date.now()}-${finalName}`;
     const gitPath = `${folderStr}/${filename}`;
     
-    const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
-    const branch = process.env.GITCODE_BRANCH || "main";
-    const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/${encodeURIComponent(gitPath)}`;
-    const content = req.file.buffer.toString("base64");
-    
-    const gitRes = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! },
-      body: JSON.stringify({ branch, content, commit_message: `Upload ${filename}`, encoding: "base64" })
-    });
-    
-    if (!gitRes.ok) {
-       console.error("GitCode upload HTTP errors:", await gitRes.text());
-       return res.status(500).json({ success: false, message: "GitCode upload failed" });
+    try {
+      const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
+      const branch = process.env.GITCODE_BRANCH || "main";
+      const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/${encodeURIComponent(gitPath)}`;
+      const content = req.file.buffer.toString("base64");
+      
+      const gitRes = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! },
+        body: JSON.stringify({ branch, content, commit_message: `Upload ${filename}`, encoding: "base64" })
+      });
+      
+      if (!gitRes.ok) {
+         console.error("GitCode upload HTTP errors:", await gitRes.text());
+         return res.status(500).json({ success: false, message: "GitCode upload failed" });
+      }
+      
+      imagePath = `/api/view?url=${encodeURIComponent(gitPath)}`;
+    } catch (e) {
+      console.error("Gitcode upload err:", e);
+      return res.status(500).json({ success: false, message: "Upload failed" });
     }
-    imagePath = `/api/view?url=${encodeURIComponent(gitPath)}`;
   } else {
     imagePath = `/api/files/${req.file.filename}`;
   }
@@ -254,7 +261,7 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
         const decodedUrl = decodeURIComponent(image.path.split("url=")[1]);
         const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
         const branch = process.env.GITCODE_BRANCH || "main";
-        const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/${encodeURIComponent(decodedUrl)}`;
+        const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/${encodeURIComponent(decodedUrl)}`;
         await fetch(url, {
           method: "DELETE",
           headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! },
@@ -285,7 +292,7 @@ app.get("/api/view", async (req, res) => {
   if (USE_GITCODE) {
      const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
      const branch = process.env.GITCODE_BRANCH || "main";
-     const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/${encodeURIComponent(targetPath)}/raw?ref=${branch}`;
+     const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/${encodeURIComponent(targetPath)}/raw?ref=${branch}`;
      
      try {
        const fileRes = await fetch(url, { headers: { "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! }});
@@ -316,7 +323,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
      
      const pId = encodeURIComponent(process.env.GITCODE_PROJECT_ID!);
      const branch = process.env.GITCODE_BRANCH || "main";
-     const url = `https://api.gitcode.com/api/v5/projects/${pId}/repository/files/${encodeURIComponent(targetPath)}/raw?ref=${branch}`;
+     const url = `https://api.gitcode.com/api/v4/projects/${pId}/repository/files/${encodeURIComponent(targetPath)}/raw?ref=${branch}`;
      
      try {
        const fileRes = await fetch(url, { headers: { "PRIVATE-TOKEN": process.env.GITCODE_TOKEN! }});
