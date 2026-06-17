@@ -97,57 +97,6 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
           className="w-full h-full object-cover rounded-t-[19px]"
         />
         
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5 rounded-t-[19px] z-10">
-          <div className="relative w-full flex justify-center">
-            <button 
-              onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
-              className="hover-btn primary"
-              title="Copy Link"
-            >
-              <Link2 size={14} /> Copy Link
-            </button>
-            
-            {showOptions && (
-              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[140px] bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.15)] border border-[var(--color-border-main)] py-1 flex flex-col z-[100]" onClick={e => e.stopPropagation()}>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); copyToClipboard("url"); }}
-                  className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
-                >
-                  {copied === "url" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
-                  URL
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); copyToClipboard("html"); }}
-                  className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
-                >
-                  {copied === "html" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
-                  HTML
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); copyToClipboard("md"); }}
-                  className="w-full text-left px-4 py-2 text-xs hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)]"
-                >
-                  {copied === "md" ? <Check size={12} className="text-[var(--color-brand-500)]" /> : <Copy size={12} className="text-[var(--color-text-muted)]" />}
-                  Markdown
-                </button>
-              </div>
-            )}
-          </div>
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-            className={`hover-btn ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Download Original"
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-               <span className="flex items-center gap-1.5"><span className="w-3 h-3 border-2 border-[var(--color-text-main)] border-t-transparent rounded-full animate-spin"></span> Downloading...</span>
-            ) : (
-               <><Download size={14} /> Download Raw</>
-            )}
-          </button>
-        </div>
-        
         {/* Actions layered above overlay */}
         {actionLeft && (
           <div className="absolute top-2 left-2 z-[60]">
@@ -160,16 +109,52 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
           </div>
         )}
       </div>
-      <div className="p-4 flex-1 flex flex-col justify-center">
+      <div className="p-3 lg:p-4 flex-1 flex flex-col justify-center">
         <div 
           onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-          className="text-[14px] font-semibold mb-1 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)] cursor-pointer hover:text-[var(--color-brand-500)] underline-offset-4 hover:underline transition-colors"
+          className="text-[13px] lg:text-[14px] font-semibold mb-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)] cursor-pointer hover:text-[var(--color-brand-500)] underline-offset-4 hover:underline transition-colors block"
           title="Click to enlarge"
         >
           {image.originalName}
         </div>
-        <div className="text-[12px] text-[var(--color-text-muted)]">
-           {(image.size / 1024 / 1024).toFixed(1)} MB • {new Date(image.createdAt).toISOString().split('T')[0]}
+        <div className="flex justify-between items-center">
+           <div className="text-[11px] lg:text-[12px] text-[var(--color-text-muted)] font-medium">
+             {(image.size / 1024 / 1024).toFixed(1)} MB • {new Date(image.createdAt).toISOString().split('T')[0]}
+           </div>
+           
+           {/* Quick Actions (Always visible on mobile, hover visible on PC) */}
+           <div className="flex items-center gap-1 -mr-1 opacity-100 lg:opacity-0 xl:group-hover:opacity-100 lg:group-hover:opacity-100 transition-opacity">
+              <div className="relative">
+                 <button 
+                   onClick={(e) => { e.stopPropagation(); setShowOptions(!showOptions); }}
+                   className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-500)] bg-[var(--color-bg-base)] hover:bg-[var(--color-brand-100)] rounded-md transition-colors"
+                   title="Copy Link Options"
+                 >
+                   <Link2 size={14} />
+                 </button>
+                 {showOptions && (
+                   <div className="absolute bottom-full mb-1 right-0 w-[120px] bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.15)] border border-[var(--color-border-main)] py-1 flex flex-col z-[100]" onClick={e => e.stopPropagation()}>
+                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard("url"); setShowOptions(false); }} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)] transition-colors">
+                        {copied === "url" ? <Check size={12} className="text-[var(--color-brand-500)]"/> : <Copy size={12} className="text-[var(--color-text-muted)]"/>} URL Link
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard("html"); setShowOptions(false); }} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)] transition-colors">
+                        {copied === "html" ? <Check size={12} className="text-[var(--color-brand-500)]"/> : <Copy size={12} className="text-[var(--color-text-muted)]"/>} HTML
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard("md"); setShowOptions(false); }} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-[var(--color-brand-100)] flex items-center gap-2 text-[var(--color-text-main)] transition-colors">
+                        {copied === "md" ? <Check size={12} className="text-[var(--color-brand-500)]"/> : <Copy size={12} className="text-[var(--color-text-muted)]"/>} Markdown
+                      </button>
+                   </div>
+                 )}
+              </div>
+              <button 
+                 onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                 disabled={isDownloading}
+                 className={`p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-brand-500)] bg-[var(--color-bg-base)] hover:bg-[var(--color-brand-100)] rounded-md transition-colors ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                 title="Download Raw File"
+              >
+                 {isDownloading ? <span className="w-[14px] h-[14px] border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full animate-spin inline-block"></span> : <Download size={14} />}
+              </button>
+           </div>
         </div>
       </div>
     </div>

@@ -211,7 +211,7 @@ export default function GuestGallery() {
                     image={img} 
                     onClick={() => setLightboxImage(img)}
                     actionLeft={
-                      <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
+                      <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'}`}>
                         <div 
                           className="cursor-pointer p-1"
                           onClick={(e) => { e.stopPropagation(); toggleSelect(img.id); }}

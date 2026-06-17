@@ -2,8 +2,8 @@ import { Github } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="w-full py-6 mt-auto shrink-0 bg-transparent">
-      <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[13px] text-[var(--color-text-muted)]">
+    <footer className="w-full py-4 md:py-6 mt-auto shrink-0 bg-transparent [@media(max-height:500px)]:hidden">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[12px] md:text-[13px] text-[var(--color-text-muted)]">
         <div>
           &copy; {new Date().getFullYear()} CGal <span className="font-mono text-[11px] ml-1 bg-gray-100 px-1.5 py-0.5 rounded-full border border-gray-200">v1.3.0</span>
         </div>

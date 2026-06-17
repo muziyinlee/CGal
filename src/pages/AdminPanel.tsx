@@ -527,7 +527,7 @@ export default function AdminPanel() {
                         image={img} 
                         onClick={() => setLightboxImage(img)}
                         actionLeft={
-                          <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
+                          <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'}`}>
                             <input 
                               type="checkbox" 
                               checked={selectedIds.has(img.id)}
@@ -539,7 +539,7 @@ export default function AdminPanel() {
                         actionRight={
                           <button 
                             onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
-                            className="p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
+                            className="p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
                           >
                             <Trash2 size={14} />
                           </button>
