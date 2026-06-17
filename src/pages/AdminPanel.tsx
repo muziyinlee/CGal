@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUploader } from "../hooks/useUploader";
 import type { ImageData } from "../types";
-import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check } from "lucide-react";
+import { LogOut, UploadCloud, Trash2, DownloadCloud, AlertCircle, RefreshCw, Check, Settings } from "lucide-react";
 import JSZip from "jszip";
 import Footer from "../components/Footer";
 
@@ -15,10 +15,16 @@ export default function AdminPanel() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDownloading, setIsDownloading] = useState(false);
   const [uploadFolder, setUploadFolder] = useState("images");
   const [activeFolder, setActiveFolder] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const [siteTitle, setSiteTitle] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [newGuestPassword, setNewGuestPassword] = useState("");
 
   const folders = ["All", ...Array.from(new Set(images.map((i) => i.folder || "images")))];
 
@@ -34,7 +40,57 @@ export default function AdminPanel() {
       return;
     }
     fetchImages();
+    fetchConfig();
   }, [token, role, navigate]);
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("/api/config");
+      const data = await res.json();
+      if (data.success && data.siteConfig) {
+        setSiteTitle(data.siteConfig.title || "");
+        if (data.siteConfig.title) {
+          document.title = data.siteConfig.title + " - Admin Panel";
+        }
+      }
+    } catch {}
+  };
+
+  const handleSaveTitle = async () => {
+    try {
+      await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: siteTitle })
+      });
+      alert("Site title updated successfully.");
+    } catch {
+      alert("Failed to update site title.");
+    }
+  };
+
+  const handleChangePassword = async (targetRole: 'admin' | 'guest') => {
+    const pw = targetRole === 'admin' ? newAdminPassword : newGuestPassword;
+    if (!pw) return;
+    try {
+      const res = await fetch("/api/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: targetRole, newPassword: pw })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${targetRole} password updated successfully.`);
+        if (targetRole === 'admin') setNewAdminPassword("");
+        if (targetRole === 'guest') setNewGuestPassword("");
+        if (targetRole === role) logout(); // force re-login if changing own password
+      } else {
+        alert("Failed to update password");
+      }
+    } catch {
+      alert("Failed to update password");
+    }
+  };
 
   const fetchImages = async () => {
     setLoading(true);
@@ -60,8 +116,19 @@ export default function AdminPanel() {
     e.preventDefault();
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragging(false);
     const files = (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith("image/"));
     if (files.length > 0) {
       addFiles(files, uploadFolder);
@@ -145,7 +212,8 @@ export default function AdminPanel() {
 
   // --- Batch Download Logic ---
   const handleBatchDownload = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || isDownloading) return;
+    setIsDownloading(true);
     
     // We must use JSZip to compose the blob and force file download,
     // avoiding URL length limits that happen when doing generic encodeURIComponent lists.
@@ -174,13 +242,15 @@ export default function AdminPanel() {
       const content = await zip.generateAsync({ type: "blob" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(content);
-      a.download = `CloverBatch_${Date.now()}.zip`;
+      a.download = `${siteTitle || 'Admin'}_Batch_${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error("Failed to generate zip", err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -228,8 +298,10 @@ export default function AdminPanel() {
             </div>
             
             <div 
-              className="p-8 flex flex-col items-center justify-center border border-dashed border-[var(--color-border-main)] m-4 rounded-[12px] bg-[#fcfdfd] hover:bg-[var(--color-brand-100)] transition-colors cursor-pointer"
+              className={`p-8 flex flex-col items-center justify-center border border-dashed m-4 rounded-[12px] bg-[#fcfdfd] transition-colors cursor-pointer ${isDragging ? 'border-[var(--color-brand-500)] bg-[var(--color-brand-100)]' : 'border-[var(--color-border-main)] hover:bg-[var(--color-brand-100)]'}`}
               onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => document.getElementById("file-upload")?.click()}
             >
@@ -272,6 +344,37 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
+          
+          <div className="card !p-0">
+             <div className="border-b border-[var(--color-border-main)] p-4 flex items-center gap-2">
+               <Settings size={18} className="text-[var(--color-text-main)]" />
+               <h2 className="font-semibold text-[var(--color-text-main)] text-[14px]">Site Settings</h2>
+             </div>
+             
+             <div className="p-4 flex flex-col gap-4">
+               <div>
+                 <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Site Title</label>
+                 <div className="flex gap-2">
+                   <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="input-capsule flex-1 !py-1.5" />
+                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-auto">Save</button>
+                 </div>
+               </div>
+               
+               <div className="pt-4 border-t border-[var(--color-border-main)]">
+                 <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Admin Pass</label>
+                 <div className="flex gap-2 mb-4">
+                   <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5" />
+                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto">Update</button>
+                 </div>
+                 
+                 <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Guest Pass</label>
+                 <div className="flex gap-2">
+                   <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5" />
+                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto">Update</button>
+                 </div>
+               </div>
+             </div>
+          </div>
         </div>
 
         {/* Right Col: Manage Zone */}
@@ -302,9 +405,16 @@ export default function AdminPanel() {
                 </button>
                 {selectedIds.size > 0 && (
                   <>
-                    <button onClick={handleBatchDownload} className="btn-secondary !px-4 hover:bg-[var(--color-bg-base)] text-[14px] font-semibold gap-2 border-[var(--color-accent-blue)] text-[var(--color-text-main)]">
-                      <DownloadCloud size={14} />
-                      Package Zip
+                    <button 
+                      onClick={handleBatchDownload} 
+                      disabled={isDownloading}
+                      className={`btn-secondary !px-4 hover:bg-[var(--color-bg-base)] text-[14px] font-semibold gap-2 border-[var(--color-accent-blue)] text-[var(--color-text-main)] ${isDownloading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {isDownloading ? (
+                        <><span className="w-3 h-3 border-2 border-[var(--color-text-main)] border-t-transparent rounded-full animate-spin"></span> Packing...</>
+                      ) : (
+                        <><DownloadCloud size={14} /> Package Zip</>
+                      )}
                     </button>
                     <button onClick={() => setShowDeleteModal(true)} className="btn-danger !px-4 gap-2 text-[14px] font-semibold">
                       <Trash2 size={14} />

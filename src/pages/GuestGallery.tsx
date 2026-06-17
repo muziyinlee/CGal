@@ -14,6 +14,8 @@ export default function GuestGallery() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [siteTitle, setSiteTitle] = useState("Gallery");
   const { token, role, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -22,6 +24,16 @@ export default function GuestGallery() {
       navigate("/login");
       return;
     }
+
+    fetch("/api/config")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.siteConfig?.title) {
+          setSiteTitle(data.siteConfig.title);
+          document.title = data.siteConfig.title;
+        }
+      })
+      .catch(() => {});
 
     fetch("/api/images", {
       headers: { Authorization: `Bearer ${token}` }
@@ -63,7 +75,8 @@ export default function GuestGallery() {
   };
 
   const handleBatchDownload = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || isDownloading) return;
+    setIsDownloading(true);
     
     const zip = new JSZip();
     const imgsToDownload = images.filter((img) => selectedIds.has(img.id));
@@ -89,13 +102,15 @@ export default function GuestGallery() {
       const content = await zip.generateAsync({ type: "blob" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(content);
-      a.download = `CloverBatch_${Date.now()}.zip`;
+      a.download = `${siteTitle}_Batch_${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error("Failed to generate zip", err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -106,9 +121,9 @@ export default function GuestGallery() {
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--color-brand-500)] flex items-center justify-center text-white font-bold text-sm">
-              <span className="text-[16px] font-sans">C</span>
+              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'G'}</span>
             </div>
-            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">Clover Gallery</h1>
+            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle}</h1>
             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2 uppercase">{role}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -135,10 +150,14 @@ export default function GuestGallery() {
             {selectedIds.size > 0 && (
               <button
                 onClick={handleBatchDownload}
-                className="btn-primary flex items-center gap-2 px-3 py-1.5 !text-[13px] !h-auto"
+                disabled={isDownloading}
+                className={`btn-primary flex items-center gap-2 px-3 py-1.5 !text-[13px] !h-auto ${isDownloading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                <DownloadCloud size={16} />
-                Download ({selectedIds.size})
+                {isDownloading ? (
+                  <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Preparing...</>
+                ) : (
+                  <><DownloadCloud size={16} /> Download ({selectedIds.size})</>
+                )}
               </button>
             )}
             <select 
@@ -172,8 +191,8 @@ export default function GuestGallery() {
                     <input 
                       type="checkbox" 
                       checked={selectedIds.has(img.id)}
-                      onChange={() => toggleSelect(img.id)}
-                      className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm"
+                      readOnly
+                      className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm pointer-events-none"
                     />
                   </div>
                   {selectedIds.has(img.id) && (

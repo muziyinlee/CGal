@@ -9,6 +9,7 @@ interface ImageCardProps {
 export default function ImageCard({ image }: ImageCardProps) {
   const [showOptions, setShowOptions] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const getAppUrl = () => {
     // Determine the base url
@@ -45,6 +46,8 @@ export default function ImageCard({ image }: ImageCardProps) {
   };
 
   const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
     try {
       const token = localStorage.getItem('app_token');
       // If path is already a proxy download, use it. Otherwise construct it for local files.
@@ -66,6 +69,8 @@ export default function ImageCard({ image }: ImageCardProps) {
       URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -128,10 +133,15 @@ export default function ImageCard({ image }: ImageCardProps) {
           </div>
           <button 
             onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-            className="hover-btn"
+            className={`hover-btn ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Download Original"
+            disabled={isDownloading}
           >
-            <Download size={14} /> Download Raw
+            {isDownloading ? (
+               <span className="flex items-center gap-1.5"><span className="w-3 h-3 border-2 border-[var(--color-text-main)] border-t-transparent rounded-full animate-spin"></span> Downloading...</span>
+            ) : (
+               <><Download size={14} /> Download Raw</>
+            )}
           </button>
         </div>
       </div>

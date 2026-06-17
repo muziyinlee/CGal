@@ -28,9 +28,14 @@ ensureLocalDb();
 
 async function readLocalDb() {
   try {
-    if (fs.existsSync(DB_FILE)) return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    if (fs.existsSync(DB_FILE)) {
+      const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      if (!data.siteConfig) data.siteConfig = { title: "Clover" };
+      if (!data.passwords) data.passwords = { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" };
+      return data;
+    }
   } catch(e) {}
-  return { images: [] };
+  return { images: [], siteConfig: { title: "Clover" }, passwords: { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" } };
 }
 
 async function writeLocalDb(data: any) {
@@ -46,11 +51,12 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // 1. Verify Login
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { password } = req.body;
-  if (password === ADMIN_PASSWORD) {
+  const db = await readLocalDb();
+  if (password === db.passwords.admin) {
     res.json({ success: true, token: "admin_token_xyz", role: "admin" });
-  } else if (password === GUEST_PASSWORD) {
+  } else if (password === db.passwords.guest) {
     res.json({ success: true, token: "guest_token_xyz", role: "guest" });
   } else {
     res.status(401).json({ success: false, message: "Invalid password" });
@@ -128,6 +134,28 @@ app.get("/api/images", requireAuth, async (req, res) => {
   const db = await readLocalDb();
   const sorted = db.images.sort((a: any, b: any) => b.createdAt - a.createdAt);
   res.json({ success: true, images: sorted });
+});
+
+app.get("/api/config", async (req, res) => {
+  const db = await readLocalDb();
+  res.json({ success: true, siteConfig: db.siteConfig });
+});
+
+app.post("/api/config", requireAdmin, async (req, res) => {
+  const { title } = req.body;
+  const db = await readLocalDb();
+  if (title) db.siteConfig.title = title;
+  await writeLocalDb(db);
+  res.json({ success: true, siteConfig: db.siteConfig });
+});
+
+app.post("/api/password", requireAdmin, async (req, res) => {
+  const { role, newPassword } = req.body;
+  const db = await readLocalDb();
+  if (role === "admin") db.passwords.admin = newPassword;
+  else if (role === "guest") db.passwords.guest = newPassword;
+  await writeLocalDb(db);
+  res.json({ success: true });
 });
 
 // 3. Upload Image (Admin)
