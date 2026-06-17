@@ -30,12 +30,12 @@ async function readLocalDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      if (!data.siteConfig) data.siteConfig = { title: "Clover" };
+      if (!data.siteConfig) data.siteConfig = { title: "AIGal" };
       if (!data.passwords) data.passwords = { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" };
       return data;
     }
   } catch(e) {}
-  return { images: [], siteConfig: { title: "Clover" }, passwords: { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" } };
+  return { images: [], siteConfig: { title: "AIGal" }, passwords: { admin: process.env.ADMIN_PASSWORD || "admin", guest: process.env.GUEST_PASSWORD || "guest" } };
 }
 
 async function writeLocalDb(data: any) {
@@ -253,18 +253,28 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
         const files = await r.json();
         const fileToDel = files.find((f: any) => f.sha === id);
         if (fileToDel) {
-          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${fileToDel.path}`, {
+          // get default branch
+          const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers: { "PRIVATE-TOKEN": token } });
+          let gitBranch = "master";
+          if (repoRes.ok) {
+            const repoData = await repoRes.json();
+            if (repoData.default_branch) gitBranch = repoData.default_branch;
+          }
+
+          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(fileToDel.path)}`, {
             method: "DELETE",
             headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": token },
             body: JSON.stringify({
               access_token: token,
               message: `Delete ${fileToDel.name}`,
               sha: fileToDel.sha,
-              branch: "master"
+              branch: gitBranch
             })
           });
           if (delRes.ok) {
             deletedFromGit = true;
+          } else {
+            console.error("GitCode delete failed:", await delRes.text());
           }
         }
       }
@@ -291,9 +301,10 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
 
   if (deletedFromGit) {
     return res.json({ success: true });
+  } else if (isActive) {
+    return res.status(500).json({ success: false, message: "Failed to delete from GitCode" });
   } else {
-    // If GitCode is active, maybe it was already deleted, we can just say success to remove it from UI state
-    // But since fetchImages returns fresh list, we can just return success: true.
+    // If GitCode is not active and local logic didn't return, then just assume success
     return res.json({ success: true });
   }
 });

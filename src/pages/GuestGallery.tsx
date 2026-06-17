@@ -15,7 +15,7 @@ export default function GuestGallery() {
   const itemsPerPage = 15;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
-  const [siteTitle, setSiteTitle] = useState("Gallery");
+  const [siteTitle, setSiteTitle] = useState("AIGal");
   const { token, role, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -126,9 +126,9 @@ export default function GuestGallery() {
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--color-brand-500)] flex items-center justify-center text-white font-bold text-sm">
-              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'G'}</span>
+              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'A'}</span>
             </div>
-            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle}</h1>
+            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle || "AIGal"}</h1>
             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2 uppercase">{role}</span>
           </div>
           <div className="flex items-center gap-2">

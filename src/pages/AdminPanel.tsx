@@ -50,7 +50,7 @@ export default function AdminPanel() {
       const res = await fetch("/api/config");
       const data = await res.json();
       if (data.success && data.siteConfig) {
-        setSiteTitle(data.siteConfig.title === "Clover" ? "" : (data.siteConfig.title || ""));
+        setSiteTitle(data.siteConfig.title === "AIGal" ? "" : (data.siteConfig.title || ""));
         if (data.siteConfig.title) {
           document.title = data.siteConfig.title + " - Admin Panel";
         }
@@ -59,7 +59,7 @@ export default function AdminPanel() {
   };
 
   const handleSaveTitle = async () => {
-    const finalTitle = siteTitle.trim() || "Clover";
+    const finalTitle = siteTitle.trim() || "AIGal";
     try {
       await fetch("/api/config", {
         method: "POST",
@@ -67,7 +67,7 @@ export default function AdminPanel() {
         body: JSON.stringify({ title: finalTitle })
       });
       alert("Site title updated successfully.");
-      if (finalTitle === "Clover") setSiteTitle("");
+      if (finalTitle === "AIGal") setSiteTitle("");
       document.title = finalTitle + " - Admin Panel";
     } catch {
       alert("Failed to update site title.");
@@ -207,11 +207,21 @@ export default function AdminPanel() {
 
       // Proceed to delete
       const idsToDelete = Array.from(selectedIds);
+      let anyErrors = false;
       for (const id of idsToDelete) {
-        await fetch(`/api/images/${id}`, {
+        const dRes = await fetch(`/api/images/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
+        const data = await dRes.json();
+        if (!data.success) anyErrors = true;
+      }
+
+      if (anyErrors) {
+        setDeleteError("Some images failed to delete from GitCode. You may need to check branch permissions.");
+        setDeleting(false);
+        fetchImages(); // Still refresh what might have succeeded
+        return;
       }
 
       setShowDeleteModal(false);
@@ -275,9 +285,9 @@ export default function AdminPanel() {
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--color-brand-500)] flex items-center justify-center text-white font-bold text-sm">
-              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'G'}</span>
+              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'A'}</span>
             </div>
-            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle || "Gallery Admin"}</h1>
+            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle ? `${siteTitle} Admin` : "AIGal Admin"}</h1>
             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2">ADMIN</span>
           </div>
           <div className="flex gap-4 items-center">
@@ -378,7 +388,7 @@ export default function AdminPanel() {
                      type="text" 
                      value={siteTitle} 
                      onChange={e => setSiteTitle(e.target.value)} 
-                     placeholder="Clover" 
+                     placeholder="AIGal" 
                      className="input-capsule flex-1 h-9 min-w-0" 
                    />
                    <button onClick={handleSaveTitle} className="btn-primary h-9 flex-none !px-4 font-semibold text-[13px] flex items-center justify-center">Save</button>
@@ -549,7 +559,7 @@ export default function AdminPanel() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-[var(--color-text-main)]/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-[var(--color-text-main)]/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[20px] p-6 w-full max-w-sm shadow-xl border border-[var(--color-border-main)] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex text-[var(--color-danger)] mb-4 items-center gap-3">
               <AlertCircle size={28} />
