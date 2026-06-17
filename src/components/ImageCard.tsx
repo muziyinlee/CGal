@@ -1,12 +1,14 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Download, Link2, Copy, Check } from "lucide-react";
 import type { ImageData } from "../types";
 
 interface ImageCardProps {
   image: ImageData;
+  actionLeft?: React.ReactNode;
+  actionRight?: React.ReactNode;
 }
 
-export default function ImageCard({ image }: ImageCardProps) {
+export default function ImageCard({ image, actionLeft, actionRight }: ImageCardProps) {
   const [showOptions, setShowOptions] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -144,6 +146,18 @@ export default function ImageCard({ image }: ImageCardProps) {
             )}
           </button>
         </div>
+        
+        {/* Actions layered above overlay */}
+        {actionLeft && (
+          <div className="absolute top-2 left-2 z-[60]">
+            {actionLeft}
+          </div>
+        )}
+        {actionRight && (
+          <div className="absolute bottom-2 right-2 z-[60]">
+            {actionRight}
+          </div>
+        )}
       </div>
       <div className="p-4 flex-1 flex flex-col justify-center">
         <div className="text-[14px] font-semibold mb-1 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)]">

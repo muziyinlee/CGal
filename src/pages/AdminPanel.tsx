@@ -20,7 +20,7 @@ export default function AdminPanel() {
   const [uploadFolder, setUploadFolder] = useState("images");
   const [activeFolder, setActiveFolder] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(12);
   const [isDragging, setIsDragging] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   
@@ -177,8 +177,8 @@ export default function AdminPanel() {
   };
 
   const displayedImages = images.filter(img => activeFolder === "All" || (img.folder || "images") === activeFolder);
-  const totalPages = Math.ceil(displayedImages.length / itemsPerPage);
-  const currentImages = displayedImages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(displayedImages.length / (itemsPerPage as number));
+  const currentImages = itemsPerPage === 'all' ? displayedImages : displayedImages.slice((currentPage - 1) * (itemsPerPage as number), currentPage * (itemsPerPage as number));
 
   const toggleSelectAll = () => {
     if (selectedIds.size === displayedImages.length) setSelectedIds(new Set());
@@ -370,7 +370,7 @@ export default function AdminPanel() {
              </div>
              
              {showSettings && (
-             <div className="p-4 flex flex-col gap-5">
+               <div className="p-4 flex flex-col gap-5">
                <div>
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Site Title</label>
                  <div className="flex gap-2">
@@ -379,23 +379,23 @@ export default function AdminPanel() {
                      value={siteTitle} 
                      onChange={e => setSiteTitle(e.target.value)} 
                      placeholder="Clover" 
-                     className="input-capsule flex-1 !py-1.5 min-w-0" 
+                     className="input-capsule flex-1 h-9 min-w-0" 
                    />
-                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-[auto]">Save</button>
+                   <button onClick={handleSaveTitle} className="btn-primary h-9 flex-none !px-4 font-semibold text-[13px] flex items-center justify-center">Save</button>
                  </div>
                </div>
                
                <div className="pt-4 border-t border-[var(--color-border-main)]">
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Admin Pass</label>
                  <div className="flex gap-2 mb-4">
-                   <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
-                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-[auto]">Update</button>
+                   <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New password" className="input-capsule flex-1 h-9 min-w-0" />
+                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary h-9 flex-none !px-4 font-semibold text-[13px] flex items-center justify-center">Update</button>
                  </div>
                  
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Guest Pass</label>
                  <div className="flex gap-2">
-                   <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
-                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-[auto]">Update</button>
+                   <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New password" className="input-capsule flex-1 h-9 min-w-0" />
+                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary h-9 flex-none !px-4 font-semibold text-[13px] flex items-center justify-center">Update</button>
                  </div>
                </div>
              </div>
@@ -457,31 +457,55 @@ export default function AdminPanel() {
               </div>
             ) : (
               <>
-                <div className="mb-4 flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold" onClick={toggleSelectAll}>
-                  <input type="checkbox" checked={selectedIds.size === displayedImages.length && displayedImages.length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
-                  Select All
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+                  <div className="flex items-center gap-2 cursor-pointer text-[14px] text-[var(--color-text-main)] font-semibold" onClick={toggleSelectAll}>
+                    <input type="checkbox" checked={selectedIds.size === displayedImages.length && displayedImages.length > 0} readOnly className="w-4 h-4 rounded text-[var(--color-brand-500)] focus:ring-[var(--color-brand-500)] accent-[var(--color-brand-500)]" />
+                    Select All
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] text-[var(--color-text-muted)] font-semibold">Items per page:</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="bg-white border border-[var(--color-border-main)] rounded-[8px] px-2 py-1 text-[13px] font-semibold text-[var(--color-text-main)] outline-none focus:border-[var(--color-brand-500)]"
+                    >
+                      <option value={12}>12</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value="all">All</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
                   {currentImages.map((img) => (
-                    <div key={img.id} className="relative group/wrapper cursor-pointer" onClick={() => toggleSelect(img.id)}>
-                      <div className={`absolute top-2 left-2 z-[60] transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.has(img.id)}
-                          readOnly
-                          className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm pointer-events-none"
-                        />
-                      </div>
+                    <div key={img.id} className="relative group/wrapper cursor-pointer" onClick={(e) => { e.preventDefault(); toggleSelect(img.id); }}>
                       {selectedIds.has(img.id) && (
                         <div className="absolute inset-0 bg-[var(--color-brand-500)]/10 rounded-[20px] pointer-events-none z-[40] border-2 border-[var(--color-brand-500)]"></div>
                       )}
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
-                        className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity z-[60] hover:bg-red-600"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                      <ImageCard image={img} />
+                      <ImageCard 
+                        image={img} 
+                        actionLeft={
+                          <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedIds.has(img.id)}
+                              readOnly
+                              className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm pointer-events-none"
+                            />
+                          </div>
+                        }
+                        actionRight={
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
+                            className="p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        }
+                      />
                     </div>
                   ))}
                 </div>
