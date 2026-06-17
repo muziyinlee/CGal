@@ -22,6 +22,7 @@ export default function AdminPanel() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [isDragging, setIsDragging] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   
   const [siteTitle, setSiteTitle] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
@@ -49,7 +50,7 @@ export default function AdminPanel() {
       const res = await fetch("/api/config");
       const data = await res.json();
       if (data.success && data.siteConfig) {
-        setSiteTitle(data.siteConfig.title || "");
+        setSiteTitle(data.siteConfig.title === "Clover" ? "" : (data.siteConfig.title || ""));
         if (data.siteConfig.title) {
           document.title = data.siteConfig.title + " - Admin Panel";
         }
@@ -58,13 +59,16 @@ export default function AdminPanel() {
   };
 
   const handleSaveTitle = async () => {
+    const finalTitle = siteTitle.trim() || "Clover";
     try {
       await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: siteTitle })
+        body: JSON.stringify({ title: finalTitle })
       });
       alert("Site title updated successfully.");
+      if (finalTitle === "Clover") setSiteTitle("");
+      document.title = finalTitle + " - Admin Panel";
     } catch {
       alert("Failed to update site title.");
     }
@@ -271,10 +275,10 @@ export default function AdminPanel() {
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--color-brand-500)] flex items-center justify-center text-white font-bold text-sm">
-              <span className="text-[16px] font-sans">A</span>
+              <span className="text-[16px] font-sans">{siteTitle ? siteTitle[0].toUpperCase() : 'G'}</span>
             </div>
-            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">Admin Console</h1>
-            <span className="bg-[var(--color-accent-blue-light)] text-[var(--color-accent-blue)] px-3 py-1 rounded-full text-[12px] font-bold ml-2">ADMIN</span>
+            <h1 className="font-bold text-[20px] tracking-tight text-[var(--color-brand-500)]">{siteTitle || "Gallery Admin"}</h1>
+            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-bold ml-2">ADMIN</span>
           </div>
           <div className="flex gap-4 items-center">
             <button onClick={handleLogout} className="text-sm font-semibold text-[var(--color-danger)] hover:opacity-80 flex items-center gap-1">
@@ -354,17 +358,30 @@ export default function AdminPanel() {
           </div>
           
           <div className="card !p-0">
-             <div className="border-b border-[var(--color-border-main)] p-4 flex items-center gap-2">
-               <Settings size={18} className="text-[var(--color-text-main)]" />
-               <h2 className="font-semibold text-[var(--color-text-main)] text-[14px]">Site Settings</h2>
+             <div 
+               className="border-b border-[var(--color-border-main)] p-4 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50"
+               onClick={() => setShowSettings(!showSettings)}
+             >
+               <div className="flex items-center gap-2">
+                 <Settings size={18} className="text-[var(--color-text-main)]" />
+                 <h2 className="font-semibold text-[var(--color-text-main)] text-[14px]">Site Settings</h2>
+               </div>
+               {showSettings ? <span className="text-[var(--color-text-muted)] text-[12px]">Collapse</span> : <span className="text-[var(--color-text-muted)] text-[12px]">Expand</span>}
              </div>
              
-            <div className="p-4 flex flex-col gap-5">
+             {showSettings && (
+             <div className="p-4 flex flex-col gap-5">
                <div>
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Site Title</label>
                  <div className="flex gap-2">
-                   <input type="text" value={siteTitle} onChange={e => setSiteTitle(e.target.value)} className="input-capsule flex-1 !py-1.5 min-w-0" />
-                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-auto shrink-0">Save</button>
+                   <input 
+                     type="text" 
+                     value={siteTitle} 
+                     onChange={e => setSiteTitle(e.target.value)} 
+                     placeholder="Clover" 
+                     className="input-capsule flex-1 !py-1.5 min-w-0" 
+                   />
+                   <button onClick={handleSaveTitle} className="btn-primary !px-3 font-semibold text-[13px] !h-[auto]">Save</button>
                  </div>
                </div>
                
@@ -372,16 +389,17 @@ export default function AdminPanel() {
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Admin Pass</label>
                  <div className="flex gap-2 mb-4">
                    <input type="password" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
-                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto shrink-0">Update</button>
+                   <button onClick={() => handleChangePassword('admin')} className="btn-secondary font-semibold text-[13px] !px-3 !h-[auto]">Update</button>
                  </div>
                  
                  <label className="text-[12px] font-semibold text-[var(--color-text-muted)] block mb-2 uppercase tracking-[1px]">Change Guest Pass</label>
                  <div className="flex gap-2">
                    <input type="password" value={newGuestPassword} onChange={e => setNewGuestPassword(e.target.value)} placeholder="New pass" className="input-capsule flex-1 !py-1.5 min-w-0" />
-                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-auto shrink-0">Update</button>
+                   <button onClick={() => handleChangePassword('guest')} className="btn-secondary font-semibold text-[13px] !px-3 !h-[auto]">Update</button>
                  </div>
                </div>
              </div>
+             )}
           </div>
         </div>
 
@@ -446,7 +464,7 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
                   {currentImages.map((img) => (
                     <div key={img.id} className="relative group/wrapper cursor-pointer" onClick={() => toggleSelect(img.id)}>
-                      <div className={`absolute top-2 left-2 z-[20] transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
+                      <div className={`absolute top-2 left-2 z-[60] transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-0 group-hover/wrapper:opacity-100'}`}>
                         <input 
                           type="checkbox" 
                           checked={selectedIds.has(img.id)}
@@ -455,11 +473,11 @@ export default function AdminPanel() {
                         />
                       </div>
                       {selectedIds.has(img.id) && (
-                        <div className="absolute inset-0 bg-[var(--color-brand-500)]/10 rounded-[20px] pointer-events-none z-20 border-2 border-[var(--color-brand-500)]"></div>
+                        <div className="absolute inset-0 bg-[var(--color-brand-500)]/10 rounded-[20px] pointer-events-none z-[40] border-2 border-[var(--color-brand-500)]"></div>
                       )}
                       <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set([img.id])); setShowDeleteModal(true); }}
-                        className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity z-20 hover:bg-red-600"
+                        className="absolute bottom-2 right-2 p-1.5 bg-red-500/90 text-white rounded-[8px] opacity-100 md:opacity-0 group-hover/wrapper:opacity-100 transition-opacity z-[60] hover:bg-red-600"
                       >
                         <Trash2 size={14} />
                       </button>
