@@ -89,7 +89,10 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
       className="card group relative flex flex-col h-full transition-all hover:shadow-sm !overflow-visible rounded-[20px] hover:z-50"
       onMouseLeave={() => setShowOptions(false)}
     >
-      <div className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px]">
+      <div 
+        className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px] cursor-pointer"
+        onClick={onClick}
+      >
         <img
           src={imgPathWithToken()}
           alt={image.originalName}
@@ -99,21 +102,20 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
         
         {/* Actions layered above overlay */}
         {actionLeft && (
-          <div className="absolute top-2 left-2 z-[60]">
+          <div className="absolute top-2 left-2 z-[60]" onClick={e => e.stopPropagation()}>
             {actionLeft}
           </div>
         )}
         {actionRight && (
-          <div className="absolute bottom-2 right-2 z-[60]">
+          <div className="absolute bottom-2 right-2 z-[60]" onClick={e => e.stopPropagation()}>
             {actionRight}
           </div>
         )}
       </div>
       <div className="p-3 lg:p-4 flex-1 flex flex-col justify-center">
         <div 
-          onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-          className="text-[13px] lg:text-[14px] font-semibold mb-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)] cursor-pointer hover:text-[var(--color-brand-500)] underline-offset-4 hover:underline transition-colors block"
-          title="Click to enlarge"
+          className="text-[13px] lg:text-[14px] font-semibold mb-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-[var(--color-text-main)] block"
+          title={image.originalName}
         >
           {image.originalName}
         </div>
