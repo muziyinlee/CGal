@@ -50,6 +50,14 @@ async function writeLocalDb(data: any) {
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Prevent API caching (especially important for Vercel edge/CDN)
+app.use("/api", (req, res, next) => {
+  if (!req.path.startsWith("/files") && !req.path.startsWith("/proxy_download")) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
+  next();
+});
+
 // 1. Verify Login
 app.post("/api/login", async (req, res) => {
   const { password } = req.body;
@@ -109,16 +117,23 @@ app.get("/api/images", requireAuth, async (req, res) => {
         const files = await r.json();
         let images = [];
         if (Array.isArray(files)) {
-          images = files.map((f: any) => ({
-            id: f.sha,
-            originalName: f.name,
-            md5: f.sha,
-            path: `/api/proxy_download?url=${encodeURIComponent(f.download_url)}`,
-            size: f.size || 0,
-            mimetype: 'image/jpeg',
-            folder: 'images',
-            createdAt: 0
-          }));
+          images = files.map((f: any) => {
+            let createdAt = 0;
+            const timeMatch = f.name.match(/_(\d{13})(?:\.[a-zA-Z0-9]+)?$/);
+            if (timeMatch && timeMatch[1]) {
+               createdAt = parseInt(timeMatch[1], 10);
+            }
+            return {
+              id: f.sha,
+              originalName: f.name,
+              md5: f.sha,
+              path: `/api/proxy_download?url=${encodeURIComponent(f.download_url)}`,
+              size: parseInt(f.size || 0, 10),
+              mimetype: 'image/jpeg',
+              folder: 'images',
+              createdAt: createdAt
+            };
+          });
         }
         return res.json({ success: true, images });
       } else {
@@ -353,6 +368,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              
              res.setHeader('Content-Type', mime);
              res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+             res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
              return res.end(buf);
            }
         }
@@ -376,6 +392,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
        res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
+       res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
        
        const arrayBuffer = await fileRes.arrayBuffer();
        res.end(Buffer.from(arrayBuffer));
@@ -387,6 +404,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        const localPath = path.join(UPLOAD_DIR, filename);
        if (fs.existsSync(localPath)) {
          res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+         res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
          res.sendFile(localPath);
        } else {
          res.status(404).send("File not found");
@@ -397,6 +415,9 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
 });
 
 // Expose files statics
-app.use("/api/files", express.static(UPLOAD_DIR));
+app.use("/api/files", express.static(UPLOAD_DIR, {
+  maxAge: '1y',
+  immutable: true
+}));
 
 export default app;

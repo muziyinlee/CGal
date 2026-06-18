@@ -121,7 +121,7 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
         </div>
         <div className="flex justify-between items-center">
            <div className="text-[11px] lg:text-[12px] text-[var(--color-text-muted)] font-medium">
-             {(image.size / 1024 / 1024).toFixed(1)} MB • {new Date(image.createdAt).toISOString().split('T')[0]}
+             {image.size > 0 ? (image.size < 1048576 ? `${(image.size / 1024).toFixed(0)} KB` : `${(image.size / 1024 / 1024).toFixed(1)} MB`) : 'Unknown Size'}
            </div>
            
            {/* Quick Actions (Always visible on mobile, hover visible on PC) */}
