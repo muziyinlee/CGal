@@ -108,45 +108,58 @@ app.get("/api/images", requireAuth, async (req, res) => {
   // If GitCode is configured at all (even without a token for read operations)
   if (isActive) {
     try {
-      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/repository/tree?recursive=true`;
       const { token } = getGitConfig();
       const headers: Record<string, string> = {};
       if (token) headers["PRIVATE-TOKEN"] = token;
+
+      // get default branch
+      const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers });
+      let gitBranch = "master";
+      if (repoRes.ok) {
+        const repoData = await repoRes.json();
+        if (repoData.default_branch) gitBranch = repoData.default_branch;
+      }
+
+      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/git/trees/${gitBranch}?recursive=1`;
       const r = await fetch(url, { headers });
       if (r.ok) {
-        const files = await r.json();
-        let images = [];
-        if (Array.isArray(files)) {
-          images = files.filter((f: any) => f.type === 'blob' && /\.(jpg|jpeg|png|gif|webp)$/i.test(f.path)).map((f: any) => {
-            let createdAt = 0;
-            const timeMatch = f.name.match(/_(\d{13})(?:\.[a-zA-Z0-9]+)?$/);
-            if (timeMatch && timeMatch[1]) {
-               createdAt = parseInt(timeMatch[1], 10);
-            }
-            
-            // Extract folder from path (if it's in a subdirectory)
-            let folder = 'images';
-            const parts = f.path.split('/');
-            if (parts.length > 1) {
-                // If the path is 'myfolder/image.png', folder is 'myfolder'
-                parts.pop(); // remove filename
-                folder = parts.join('/');
-            } else {
-                folder = 'root';
-            }
-
-            return {
-              id: f.id || f.sha, // Tree API uses 'id', contents API uses 'sha'
-              originalName: f.name,
-              md5: f.id || f.sha,
-              path: `/api/proxy_download?path=${encodeURIComponent(f.path)}`,
-              size: 0, // Tree API does not return size
-              mimetype: 'image/jpeg',
-              folder: folder,
-              createdAt: createdAt
-            };
-          });
+        const data = await r.json();
+        let files = [];
+        if (Array.isArray(data)) {
+           files = data;
+        } else if (data && Array.isArray(data.tree)) {
+           files = data.tree;
         }
+
+        let images = files.filter((f: any) => (f.type === 'blob' || f.type === 'file') && /\.(jpg|jpeg|png|gif|webp)$/i.test(f.path || f.name)).map((f: any) => {
+          let createdAt = 0;
+          const fileName = f.name || f.path.split('/').pop() || "";
+          const timeMatch = fileName.match(/_(\d{13})(?:\.[a-zA-Z0-9]+)?$/);
+          if (timeMatch && timeMatch[1]) {
+             createdAt = parseInt(timeMatch[1], 10);
+          }
+          
+          let folder = 'images';
+          const itemPath = f.path || f.name || "";
+          const parts = itemPath.split('/');
+          if (parts.length > 1) {
+              parts.pop();
+              folder = parts.join('/');
+          } else {
+              folder = 'root';
+          }
+
+          return {
+            id: f.sha || f.id || fileName,
+            originalName: fileName,
+            md5: f.sha || f.id || fileName,
+            path: f.download_url ? `/api/proxy_download?url=${encodeURIComponent(f.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
+            size: parseInt(f.size || 0, 10),
+            mimetype: 'image/jpeg',
+            folder: folder,
+            createdAt: createdAt
+          };
+        });
         return res.json({ success: true, images });
       } else {
         const errText = await r.text();
@@ -294,27 +307,35 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
 
   if (isActive && token) {
     try {
+      // get default branch
+      const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers: { "PRIVATE-TOKEN": token } });
+      let gitBranch = "master";
+      if (repoRes.ok) {
+        const repoData = await repoRes.json();
+        if (repoData.default_branch) gitBranch = repoData.default_branch;
+      }
+
       // We need to fetch the file path first because delete requires the path and sha
-      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/repository/tree?recursive=true&access_token=${token}`;
+      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/git/trees/${gitBranch}?recursive=1&access_token=${token}`;
       const r = await fetch(listUrl, { headers: { "PRIVATE-TOKEN": token } });
       if (r.ok) {
-        const files = await r.json();
-        const fileToDel = files.find((f: any) => f.id === id || f.sha === id);
-        if (fileToDel) {
-          // get default branch
-          const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers: { "PRIVATE-TOKEN": token } });
-          let gitBranch = "master";
-          if (repoRes.ok) {
-            const repoData = await repoRes.json();
-            if (repoData.default_branch) gitBranch = repoData.default_branch;
-          }
+        const data = await r.json();
+        let files = [];
+        if (Array.isArray(data)) {
+           files = data;
+        } else if (data && Array.isArray(data.tree)) {
+           files = data.tree;
+        }
 
-          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(fileToDel.path)}`, {
+        const fileToDel = files.find((f: any) => f.id === id || f.sha === id || f.name === id);
+        if (fileToDel) {
+          const itemPath = fileToDel.path || fileToDel.name;
+          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(itemPath)}`, {
             method: "DELETE",
             headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": token },
             body: JSON.stringify({
               access_token: token,
-              message: `Delete ${fileToDel.name}`,
+              message: `Delete ${itemPath}`,
               sha: fileToDel.id || fileToDel.sha,
               branch: gitBranch
             })
