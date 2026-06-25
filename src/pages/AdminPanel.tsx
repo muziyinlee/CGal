@@ -18,6 +18,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadFolder, setUploadFolder] = useState("images");
   const [activeFolder, setActiveFolder] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,8 +161,12 @@ export default function AdminPanel() {
   };
 
   const handleProcessQueue = async () => {
+    if (isUploading) return;
     const pendingTasks = tasks.filter(t => t.status === "pending");
-    const CONCURRENCY_LIMIT = 3;
+    if (pendingTasks.length === 0) return;
+
+    setIsUploading(true);
+    const CONCURRENCY_LIMIT = 1;
     let i = 0;
     
     const workers = Array(CONCURRENCY_LIMIT).fill(null).map(async () => {
@@ -179,6 +184,7 @@ export default function AdminPanel() {
 
     await Promise.all(workers);
     fetchImages();
+    setIsUploading(false);
   };
 
   const toggleSelect = (id: string) => {
@@ -369,7 +375,13 @@ export default function AdminPanel() {
                   <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-[1px]">Queue ({tasks.length})</span>
                   <div className="flex gap-2">
                     <button onClick={clearDone} className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] font-bold">Clear Done</button>
-                    <button onClick={handleProcessQueue} className="text-[11px] font-bold text-[var(--color-brand-500)] hover:text-[var(--color-brand-600)]">Start Upload</button>
+                    <button 
+                      onClick={handleProcessQueue} 
+                      disabled={isUploading || tasks.filter(t => t.status === "pending").length === 0}
+                      className={`text-[11px] font-bold ${isUploading ? 'text-gray-400 cursor-not-allowed' : 'text-[var(--color-brand-500)] hover:text-[var(--color-brand-600)]'}`}
+                    >
+                      {isUploading ? 'Uploading...' : 'Start Upload'}
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -527,7 +539,10 @@ export default function AdminPanel() {
                         image={img} 
                         onClick={() => setLightboxImage(img)}
                         actionLeft={
-                          <div className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'}`}>
+                          <div 
+                            className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'} cursor-pointer`}
+                            onClick={(e) => { e.stopPropagation(); toggleSelect(img.id); }}
+                          >
                             <input 
                               type="checkbox" 
                               checked={selectedIds.has(img.id)}

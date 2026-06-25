@@ -220,7 +220,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
 
     try {
       // Check if file exists first
-      const checkUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${gitPath}`;
+      const checkUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(gitPath)}`;
       const checkRes = await fetch(checkUrl, { headers: { "PRIVATE-TOKEN": token } });
       if (checkRes.ok) { // File exists
          finalName = `${base}_${Date.now()}${ext}`;
@@ -228,7 +228,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
       }
 
       const content = req.file.buffer.toString("base64");
-      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${gitPath}`;
+      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(gitPath)}`;
       
       const gitRes = await fetch(url, {
         method: "POST",
@@ -245,13 +245,19 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
          return res.status(500).json({ success: false, message: "GitCode upload failed. Please check your GITCODE_TOKEN permissions." });
       }
       
-      const responseData = await gitRes.json();
+      let responseData: any = {};
+      try {
+         responseData = await gitRes.json();
+      } catch (err) {
+         console.warn("Could not parse GitCode response as JSON, but upload succeeded.");
+      }
+
       return res.json({ 
         success: true, 
         image: { 
-          id: responseData.content?.sha || md5,
+          id: responseData?.content?.sha || md5,
           originalName: finalName,
-          path: responseData.content?.download_url || "",
+          path: responseData?.content?.download_url || "",
           folder: folder,
           createdAt: Date.now()
         } 
