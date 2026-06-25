@@ -112,26 +112,39 @@ app.get("/api/images", requireAuth, async (req, res) => {
       const headers: Record<string, string> = {};
       if (token) headers["PRIVATE-TOKEN"] = token;
 
-      // get default branch
-      const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers });
-      let gitBranch = "master";
-      if (repoRes.ok) {
-        const repoData = await repoRes.json();
-        if (repoData.default_branch) gitBranch = repoData.default_branch;
-      }
-
-      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/git/trees/${gitBranch}?recursive=1`;
-      const r = await fetch(url, { headers });
-      if (r.ok) {
-        const data = await r.json();
-        let files = [];
-        if (Array.isArray(data)) {
-           files = data;
-        } else if (data && Array.isArray(data.tree)) {
-           files = data.tree;
+      // 1. Fetch root contents
+      const rootUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents`;
+      const rootRes = await fetch(rootUrl, { headers });
+      
+      if (rootRes.ok) {
+        const rootItems = await rootRes.json();
+        let allFiles: any[] = [];
+        
+        if (Array.isArray(rootItems)) {
+          // Add root blobs
+          allFiles.push(...rootItems.filter(item => item.type === 'file' || item.type === 'blob'));
+          
+          // Find directories
+          const dirs = rootItems.filter(item => item.type === 'dir');
+          
+          // Fetch each directory (1 level deep)
+          const dirPromises = dirs.map(async (dir) => {
+            const dirUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(dir.path)}`;
+            const dirRes = await fetch(dirUrl, { headers });
+            if (dirRes.ok) {
+              const dirItems = await dirRes.json();
+              if (Array.isArray(dirItems)) {
+                return dirItems.filter(item => item.type === 'file' || item.type === 'blob');
+              }
+            }
+            return [];
+          });
+          
+          const dirsResults = await Promise.all(dirPromises);
+          dirsResults.forEach(items => allFiles.push(...items));
         }
 
-        let images = files.filter((f: any) => (f.type === 'blob' || f.type === 'file') && /\.(jpg|jpeg|png|gif|webp)$/i.test(f.path || f.name)).map((f: any) => {
+        let images = allFiles.filter((f: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(f.path || f.name)).map((f: any) => {
           let createdAt = 0;
           const fileName = f.name || f.path.split('/').pop() || "";
           const timeMatch = fileName.match(/_(\d{13})(?:\.[a-zA-Z0-9]+)?$/);
@@ -139,14 +152,12 @@ app.get("/api/images", requireAuth, async (req, res) => {
              createdAt = parseInt(timeMatch[1], 10);
           }
           
-          let folder = 'images';
+          let folder = 'root';
           const itemPath = f.path || f.name || "";
           const parts = itemPath.split('/');
           if (parts.length > 1) {
               parts.pop();
               folder = parts.join('/');
-          } else {
-              folder = 'root';
           }
 
           return {
@@ -160,10 +171,12 @@ app.get("/api/images", requireAuth, async (req, res) => {
             createdAt: createdAt
           };
         });
+        
         return res.json({ success: true, images });
       } else {
-        const errText = await r.text();
-        console.error("GitCode fetch images error:", errText);
+        const errText = await rootRes.text();
+        console.error("GitCode fetch root contents error:", errText);
+        return res.json({ success: false, images: [], error: errText, status: rootRes.status });
       }
     } catch (e) {
       console.error("GitCode APIs error", e);
@@ -321,19 +334,37 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
         if (repoData.default_branch) gitBranch = repoData.default_branch;
       }
 
-      // We need to fetch the file path first because delete requires the path and sha
-      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/git/trees/${gitBranch}?recursive=1&access_token=${token}`;
-      const r = await fetch(listUrl, { headers: { "PRIVATE-TOKEN": token } });
-      if (r.ok) {
-        const data = await r.json();
-        let files = [];
-        if (Array.isArray(data)) {
-           files = data;
-        } else if (data && Array.isArray(data.tree)) {
-           files = data.tree;
+        const rootUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents?access_token=${token}`;
+        const rootRes = await fetch(rootUrl, { headers: { "PRIVATE-TOKEN": token } });
+        
+        let fileToDel = null;
+        if (rootRes.ok) {
+          const rootItems = await rootRes.json();
+          let allFiles: any[] = [];
+          
+          if (Array.isArray(rootItems)) {
+            allFiles.push(...rootItems.filter(item => item.type === 'file' || item.type === 'blob'));
+            const dirs = rootItems.filter(item => item.type === 'dir');
+            
+            const dirPromises = dirs.map(async (dir) => {
+              const dirUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(dir.path)}?access_token=${token}`;
+              const dirRes = await fetch(dirUrl, { headers: { "PRIVATE-TOKEN": token } });
+              if (dirRes.ok) {
+                const dirItems = await dirRes.json();
+                if (Array.isArray(dirItems)) {
+                  return dirItems.filter(item => item.type === 'file' || item.type === 'blob');
+                }
+              }
+              return [];
+            });
+            
+            const dirsResults = await Promise.all(dirPromises);
+            dirsResults.forEach(items => allFiles.push(...items));
+          }
+
+          fileToDel = allFiles.find((f: any) => f.id === id || f.sha === id || f.name === id);
         }
 
-        const fileToDel = files.find((f: any) => f.id === id || f.sha === id || f.name === id);
         if (fileToDel) {
           const itemPath = fileToDel.path || fileToDel.name;
           const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(itemPath)}`, {
@@ -352,7 +383,6 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
             console.error("GitCode delete failed:", await delRes.text());
           }
         }
-      }
     } catch (e) {
       console.error(e);
     }

@@ -91,7 +91,7 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
     >
       <div 
         className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px] cursor-pointer"
-        onClick={onClick}
+        onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       >
         <img
           src={imgPathWithToken()}
