@@ -102,12 +102,12 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
         
         {/* Actions layered above overlay */}
         {actionLeft && (
-          <div className="absolute top-2 left-2 z-[60]" onClick={e => e.stopPropagation()}>
+          <div className="absolute top-2 left-2 z-[60]">
             {actionLeft}
           </div>
         )}
         {actionRight && (
-          <div className="absolute bottom-2 right-2 z-[60]" onClick={e => e.stopPropagation()}>
+          <div className="absolute bottom-2 right-2 z-[60]">
             {actionRight}
           </div>
         )}
