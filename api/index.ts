@@ -108,7 +108,7 @@ app.get("/api/images", requireAuth, async (req, res) => {
   // If GitCode is configured at all (even without a token for read operations)
   if (isActive) {
     try {
-      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/images`;
+      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/repository/tree?recursive=true`;
       const { token } = getGitConfig();
       const headers: Record<string, string> = {};
       if (token) headers["PRIVATE-TOKEN"] = token;
@@ -117,20 +117,32 @@ app.get("/api/images", requireAuth, async (req, res) => {
         const files = await r.json();
         let images = [];
         if (Array.isArray(files)) {
-          images = files.map((f: any) => {
+          images = files.filter((f: any) => f.type === 'blob' && /\.(jpg|jpeg|png|gif|webp)$/i.test(f.path)).map((f: any) => {
             let createdAt = 0;
             const timeMatch = f.name.match(/_(\d{13})(?:\.[a-zA-Z0-9]+)?$/);
             if (timeMatch && timeMatch[1]) {
                createdAt = parseInt(timeMatch[1], 10);
             }
+            
+            // Extract folder from path (if it's in a subdirectory)
+            let folder = 'images';
+            const parts = f.path.split('/');
+            if (parts.length > 1) {
+                // If the path is 'myfolder/image.png', folder is 'myfolder'
+                parts.pop(); // remove filename
+                folder = parts.join('/');
+            } else {
+                folder = 'root';
+            }
+
             return {
-              id: f.sha,
+              id: f.id || f.sha, // Tree API uses 'id', contents API uses 'sha'
               originalName: f.name,
-              md5: f.sha,
-              path: `/api/proxy_download?url=${encodeURIComponent(f.download_url)}`,
-              size: parseInt(f.size || 0, 10),
+              md5: f.id || f.sha,
+              path: `/api/proxy_download?path=${encodeURIComponent(f.path)}`,
+              size: 0, // Tree API does not return size
               mimetype: 'image/jpeg',
-              folder: 'images',
+              folder: folder,
               createdAt: createdAt
             };
           });
@@ -185,15 +197,23 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
   let finalName = originalName;
   const ext = path.extname(originalName);
   const base = path.basename(originalName, ext);
-  finalName = `${base}_${Date.now()}${ext}`;
 
   if (isActive) {
-    const gitPath = `images/${finalName}`;
     if (!token) {
         return res.status(500).json({ success: false, message: "GITCODE_TOKEN environment variable is required to upload images. Please configure it in the AI Studio Settings." });
     }
 
+    let gitPath = `${folder}/${finalName}`;
+
     try {
+      // Check if file exists first
+      const checkUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${gitPath}`;
+      const checkRes = await fetch(checkUrl, { headers: { "PRIVATE-TOKEN": token } });
+      if (checkRes.ok) { // File exists
+         finalName = `${base}_${Date.now()}${ext}`;
+         gitPath = `${folder}/${finalName}`;
+      }
+
       const content = req.file.buffer.toString("base64");
       const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${gitPath}`;
       
@@ -229,14 +249,27 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
     }
   } else {
     // Local storage
-    const filename = `${Date.now()}-${finalName}`;
-    const filePath = path.join(UPLOAD_DIR, filename);
+    let filename = finalName;
+    let targetFolder = path.join(UPLOAD_DIR, folder);
+    
+    // Ensure target folder exists
+    if (!fs.existsSync(targetFolder)) {
+       fs.mkdirSync(targetFolder, { recursive: true });
+    }
+
+    let filePath = path.join(targetFolder, filename);
+    if (fs.existsSync(filePath)) {
+       filename = `${base}_${Date.now()}${ext}`;
+       filePath = path.join(targetFolder, filename);
+    }
+    
     fs.writeFileSync(filePath, req.file.buffer);
     
-    const imagePath = `/api/files/${filename}`;
+    // Update image path to include folder
+    const imagePath = `/api/files/${folder}/${filename}`;
     const newImage = {
       id: Math.random().toString(36).substring(2, 9),
-      originalName: finalName,
+      originalName: filename,
       md5: md5,
       path: imagePath,
       size: req.file.size,
@@ -262,11 +295,11 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
   if (isActive && token) {
     try {
       // We need to fetch the file path first because delete requires the path and sha
-      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/images?access_token=${token}`;
+      const listUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/repository/tree?recursive=true&access_token=${token}`;
       const r = await fetch(listUrl, { headers: { "PRIVATE-TOKEN": token } });
       if (r.ok) {
         const files = await r.json();
-        const fileToDel = files.find((f: any) => f.sha === id);
+        const fileToDel = files.find((f: any) => f.id === id || f.sha === id);
         if (fileToDel) {
           // get default branch
           const repoRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}`, { headers: { "PRIVATE-TOKEN": token } });
@@ -282,7 +315,7 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
             body: JSON.stringify({
               access_token: token,
               message: `Delete ${fileToDel.name}`,
-              sha: fileToDel.sha,
+              sha: fileToDel.id || fileToDel.sha,
               branch: gitBranch
             })
           });
@@ -305,7 +338,9 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
     const image = db.images[imageIndex];
     db.images.splice(imageIndex, 1);
     try {
-      const filePath = path.join(UPLOAD_DIR, path.basename(image.path));
+      // Decode URL component to handle spaces and special chars, then remove the /api/files/ prefix
+      const relativePath = decodeURIComponent(image.path).replace('/api/files/', '');
+      const filePath = path.join(UPLOAD_DIR, relativePath);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
@@ -350,7 +385,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
   
   if (filePath && isActive) {
      try {
-        const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${filePath}`;
+        const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(filePath)}`;
         const headers: Record<string, string> = {};
         if (token) headers["PRIVATE-TOKEN"] = token;
         
@@ -400,8 +435,9 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        res.status(500).send("Error fetching from GitCode");
      }
   } else if (targetPath && targetPath.startsWith("/api/files/")) {
-       const filename = path.basename(targetPath);
-       const localPath = path.join(UPLOAD_DIR, filename);
+       const relativePath = decodeURIComponent(targetPath).replace('/api/files/', '');
+       const localPath = path.join(UPLOAD_DIR, relativePath);
+       const filename = path.basename(relativePath);
        if (fs.existsSync(localPath)) {
          res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
          res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
