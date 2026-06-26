@@ -373,6 +373,12 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
   }
 });
 
+import pLimit from 'p-limit';
+const gitcodeLimit = pLimit(3); // Max 3 concurrent requests to GitCode
+
+// Simple memory cache
+const imageCache = new Map<string, { mime: string, buf: Buffer, time: number }>();
+
 // Proxy Download
 app.get("/api/proxy_download", requireAuth, async (req, res) => {
   let targetPath = req.query.url as string;
@@ -395,6 +401,16 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
 
   if (!targetPath && !filePath) return res.status(400).send("No url or path provided");
   
+  if (filePath && targetPath) filePath = decodeURIComponent(filePath);
+
+  const cacheKey = (filePath || targetPath) + (req.query.thumb ? '_thumb' : '');
+  if (imageCache.has(cacheKey)) {
+     const cached = imageCache.get(cacheKey)!;
+     res.setHeader('Content-Type', cached.mime);
+     res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
+     return res.end(cached.buf);
+  }
+  
   const { token, projectId, isActive } = getGitConfig();
   
   if (filePath && isActive) {
@@ -404,7 +420,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
         const headers: Record<string, string> = {};
         if (token) headers["PRIVATE-TOKEN"] = token;
         
-        const r = await fetch(url + (token ? `?access_token=${token}` : ''), { headers });
+        const r = await gitcodeLimit(() => fetch(url + (token ? `?access_token=${token}` : ''), { headers }));
         if (r.ok) {
            const data = await r.json();
            if (data.content) {
@@ -453,7 +469,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              targetPath += (targetPath.includes("?") ? "&" : "?") + `private_token=${token}`;
          }
        }
-       const fileRes = await fetch(targetPath, { headers });
+       const fileRes = await gitcodeLimit(() => fetch(targetPath, { headers }));
        if (!fileRes.ok) return res.status(404).send("File not found on GitCode");
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
@@ -473,6 +489,11 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
           } catch (e) {
             console.error('Thumb error:', e);
           }
+        }
+        imageCache.set(cacheKey, { mime, buf: finalBuf, time: Date.now() });
+        if (imageCache.size > 200) {
+            const oldestKey = Array.from(imageCache.entries()).sort((a,b) => a[1].time - b[1].time)[0][0];
+            imageCache.delete(oldestKey);
         }
         res.end(finalBuf);
      } catch (err) {
