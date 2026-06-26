@@ -419,7 +419,17 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              res.setHeader('Content-Type', mime);
              res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
              res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
-             return res.end(buf);
+             let finalBuf = buf;
+              if (req.query.thumb && mime !== 'image/svg+xml') {
+                try {
+                  finalBuf = await sharp(buf).resize(400).jpeg({ quality: 40 }).toBuffer();
+                  mime = 'image/jpeg';
+                } catch (e) {
+                  console.error('Thumb error:', e);
+                }
+              }
+              res.setHeader('Content-Type', mime);
+              return res.end(finalBuf);
            } else {
              console.error("GitCode file has no content field:", data);
              // fallback
@@ -452,7 +462,19 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
        
        const arrayBuffer = await fileRes.arrayBuffer();
-       res.end(Buffer.from(arrayBuffer));
+       let finalBuf = Buffer.from(arrayBuffer);
+        let mime = fileRes.headers.get('content-type') || 'application/octet-stream';
+        
+        if (req.query.thumb && !mime.includes('svg')) {
+          try {
+            finalBuf = await sharp(finalBuf).resize(400).jpeg({ quality: 40 }).toBuffer();
+            mime = 'image/jpeg';
+            res.setHeader('Content-Type', mime);
+          } catch (e) {
+            console.error('Thumb error:', e);
+          }
+        }
+        res.end(finalBuf);
      } catch (err) {
        res.status(500).send("Error fetching from GitCode");
      }
@@ -463,7 +485,17 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        if (fs.existsSync(localPath)) {
          res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
          res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
-         res.sendFile(localPath);
+         if (req.query.thumb && !localPath.toLowerCase().endsWith('.svg')) {
+             try {
+               const buf = fs.readFileSync(localPath);
+               const finalBuf = await sharp(buf).resize(400).jpeg({ quality: 40 }).toBuffer();
+               res.setHeader('Content-Type', 'image/jpeg');
+               return res.end(finalBuf);
+             } catch (e) {
+               console.error('Thumb error:', e);
+             }
+          }
+          res.sendFile(localPath);
        } else {
          res.status(404).send("File not found");
        }
