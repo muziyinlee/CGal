@@ -91,6 +91,7 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
 
   return (
     <div 
+      ref={ref}
       className="card group relative flex flex-col h-full transition-all hover:shadow-sm !overflow-visible rounded-[20px] hover:z-50"
       onMouseLeave={() => setShowOptions(false)}
     >
