@@ -467,11 +467,11 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
               return res.end(finalBuf);
            } else {
              console.error("GitCode file has no content field:", data);
-             // fallback
+             return res.status(500).send("V5 API Failed");
            }
         } else {
            console.error("GitCode fetch failed:", r.status, await r.text());
-           // fallback
+           return res.status(500).send("V5 API Exception");
         }
      } catch (e) {
         console.error("Error fetching via GitCode API", e);
@@ -499,7 +499,8 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
           return res;
        };
        const fileRes = await fetchGitCodeRaw();
-       if (!fileRes.ok) return res.status(404).send("File not found on GitCode");
+       if (!fileRes.ok) return res.status(404).send("Raw fetch failed: " + fileRes.status);
+
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
