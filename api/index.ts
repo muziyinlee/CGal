@@ -150,7 +150,7 @@ app.get("/api/images", requireAuth, async (req, res) => {
             id: f.sha || f.id || fileName,
             originalName: fileName,
             md5: f.sha || f.id || fileName,
-            path: f.download_url ? `/api/proxy_download?url=${encodeURIComponent(f.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
+            path: `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
             size: parseInt(f.size || 0, 10),
             mimetype: 'image/jpeg',
             folder: folder,
@@ -250,7 +250,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
         image: { 
           id: responseData?.content?.sha || md5,
           originalName: finalName,
-          path: responseData?.content?.download_url || "",
+          path: `/api/proxy_download?path=${encodeURIComponent(gitPath)}`,
           folder: folder,
           createdAt: Date.now()
         } 

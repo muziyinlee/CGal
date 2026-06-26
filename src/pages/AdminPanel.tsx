@@ -540,14 +540,14 @@ export default function AdminPanel() {
                         onClick={() => setLightboxImage(img)}
                         actionLeft={
                           <div 
-                            className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'} cursor-pointer`}
-                            onClick={(e) => { e.stopPropagation(); toggleSelect(img.id); }}
+                            className={`transition-opacity ${selectedIds.has(img.id) || selectedIds.size > 0 ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover/wrapper:opacity-100'}`}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <input 
                               type="checkbox" 
                               checked={selectedIds.has(img.id)}
-                              readOnly
-                              className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm pointer-events-none"
+                              onChange={(e) => { e.stopPropagation(); toggleSelect(img.id); }}
+                              className="w-5 h-5 rounded cursor-pointer accent-[var(--color-brand-500)] shadow-sm"
                             />
                           </div>
                         }
