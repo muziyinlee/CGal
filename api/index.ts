@@ -153,7 +153,7 @@ app.get("/api/images", requireAuth, async (req, res) => {
             id: f.sha || f.id || fileName,
             originalName: fileName,
             md5: f.sha || f.id || fileName,
-            path: f.download_url ? `/api/proxy_download?url=${encodeURIComponent(f.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
+            path: f.download_url ? `/api/proxy_download?url=${encodeURIComponent(f.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(itemPath)}&projectId=${encodeURIComponent(projectId)}`,
             size: parseInt(f.size || 0, 10),
             mimetype: 'image/jpeg',
             folder: folder,
@@ -255,7 +255,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
         image: { 
           id: responseData?.content?.sha || md5,
           originalName: finalName,
-          path: responseData?.content?.download_url ? `/api/proxy_download?url=${encodeURIComponent(responseData.content.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(gitPath)}`,
+          path: responseData?.content?.download_url ? `/api/proxy_download?url=${encodeURIComponent(responseData.content.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(gitPath)}&projectId=${encodeURIComponent(projectId)}`,
           folder: folder,
           createdAt: Date.now()
         } 
@@ -413,6 +413,10 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
   }
   
   let { token, projectId, isActive } = getGitConfig();
+  if (!projectId) {
+     projectId = (req.query.projectId as string) || 'gcw_Vf7o0KEo/gen-image-bed';
+     isActive = true;
+  }
   if (targetPath && targetPath.includes('raw.gitcode.com')) {
       const pMatch = targetPath.match(/raw\.gitcode\.com\/([^\/]+\/[^\/]+)\/blobs\//);
       if (pMatch && pMatch[1]) {
@@ -452,7 +456,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              else if (ext === '.svg') mime = 'image/svg+xml';
              
              res.setHeader('Content-Type', mime);
-             res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+             res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(path.basename(filePath))}`);
              res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
              let finalBuf = buf;
               if (req.query.thumb && mime !== 'image/svg+xml') {
@@ -475,7 +479,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
         }
      } catch (e) {
         console.error("Error fetching via GitCode API", e);
-        // fallback
+         return res.status(500).send("V5 API Exception: " + String(e));
      }
   }
 
@@ -503,7 +507,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
 
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";
-       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+       res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
        res.setHeader('Content-Type', fileRes.headers.get('content-type') || 'application/octet-stream');
        res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
        
@@ -534,7 +538,7 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
        const localPath = path.join(UPLOAD_DIR, relativePath);
        const filename = path.basename(relativePath);
        if (fs.existsSync(localPath)) {
-         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+         res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
          res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
          if (req.query.thumb && !localPath.toLowerCase().endsWith('.svg')) {
              try {
