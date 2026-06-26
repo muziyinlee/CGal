@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Download, Link2, Copy, Check } from "lucide-react";
+import { useInView } from "react-intersection-observer";
 import type { ImageData } from "../types";
 
 interface ImageCardProps {
@@ -77,7 +78,10 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
     }
   };
 
+  const { ref, inView } = useInView({ triggerOnce: true, rootMargin: '200px 0px' });
+  
   const imgPathWithToken = () => {
+     if (!inView) return '';
      const token = localStorage.getItem('app_token');
      let resultPath = image.path;
      if (resultPath.includes("/api/proxy_download") && token) resultPath = `${resultPath}&t=${token}`;
@@ -94,12 +98,13 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
         className="relative h-[140px] bg-[#f0f4f3] flex items-center justify-center shrink-0 rounded-t-[20px] cursor-pointer"
         onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       >
-        <img
-          src={imgPathWithToken()}
-          alt={image.originalName}
-          loading="lazy"
-          className="w-full h-full object-cover rounded-t-[19px]"
-        />
+        {inView && (
+          <img
+            src={imgPathWithToken()}
+            alt={image.originalName}
+            className="w-full h-full object-cover rounded-t-[19px] transition-opacity duration-300"
+          />
+        )}
         
         {/* Actions layered above overlay */}
         {actionLeft && (

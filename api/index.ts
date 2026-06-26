@@ -1,4 +1,5 @@
 import express from "express";
+import pLimit from 'p-limit';
 import cors from "cors";
 import multer from "multer";
 import path from "path";
@@ -373,7 +374,7 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
   }
 });
 
-import pLimit from 'p-limit';
+
 const gitcodeLimit = pLimit(3); // Max 3 concurrent requests to GitCode
 
 // Simple memory cache
@@ -411,7 +412,14 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
      return res.end(cached.buf);
   }
   
-  const { token, projectId, isActive } = getGitConfig();
+  let { token, projectId, isActive } = getGitConfig();
+  if (targetPath && targetPath.includes('raw.gitcode.com')) {
+      const pMatch = targetPath.match(/raw\.gitcode\.com\/([^\/]+\/[^\/]+)\/blobs\//);
+      if (pMatch && pMatch[1]) {
+          projectId = pMatch[1];
+          isActive = true;
+      }
+  }
   
   if (filePath && isActive) {
      try {
@@ -420,7 +428,18 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
         const headers: Record<string, string> = {};
         if (token) headers["PRIVATE-TOKEN"] = token;
         
-        const r = await gitcodeLimit(() => fetch(url + (token ? `?access_token=${token}` : ''), { headers }));
+        
+        const fetchGitCode = async (retryCount = 0): Promise<any> => {
+           const r = await gitcodeLimit(() => fetch(url + (token ? `?access_token=${token}` : ''), { headers }));
+           if (r.status === 429 || r.status >= 500) {
+              if (retryCount < 2) {
+                 await new Promise(res => setTimeout(res, 1000 + Math.random() * 2000));
+                 return fetchGitCode(retryCount + 1);
+              }
+           }
+           return r;
+        };
+        const r = await fetchGitCode();
         if (r.ok) {
            const data = await r.json();
            if (data.content) {
@@ -469,7 +488,17 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              targetPath += (targetPath.includes("?") ? "&" : "?") + `private_token=${token}`;
          }
        }
-       const fileRes = await gitcodeLimit(() => fetch(targetPath, { headers }));
+       const fetchGitCodeRaw = async (retryCount = 0): Promise<any> => {
+          const res = await gitcodeLimit(() => fetch(targetPath, { headers }));
+          if (res.status === 429 || res.status >= 500) {
+             if (retryCount < 2) {
+                await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+                return fetchGitCodeRaw(retryCount + 1);
+             }
+          }
+          return res;
+       };
+       const fileRes = await fetchGitCodeRaw();
        if (!fileRes.ok) return res.status(404).send("File not found on GitCode");
        
        const filename = path.basename(new URL(targetPath).pathname) || "download.png";

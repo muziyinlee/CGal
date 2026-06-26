@@ -28,6 +28,7 @@
     "p-limit": "^7.3.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-intersection-observer": "^10.0.3",
     "react-router-dom": "^7.18.0",
     "sharp": "^0.35.2",
     "spark-md5": "^3.0.2",
