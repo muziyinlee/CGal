@@ -79,9 +79,10 @@ export default function ImageCard({ image, actionLeft, actionRight, onClick }: I
 
   const imgPathWithToken = () => {
      const token = localStorage.getItem('app_token');
-     const path = image.path;
-     if (path.includes("/api/proxy_download") && token) return `${path}&t=${token}`;
-     return path;
+     let resultPath = image.path;
+     if (resultPath.includes("/api/proxy_download") && token) resultPath = `${resultPath}&t=${token}`;
+     resultPath += resultPath.includes('?') ? '&thumb=1' : '?thumb=1';
+     return resultPath;
   };
 
   return (

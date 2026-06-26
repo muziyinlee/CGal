@@ -3,6 +3,7 @@ import cors from "cors";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
 const GUEST_PASSWORD = process.env.GUEST_PASSWORD || "guest";
@@ -421,15 +422,15 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              return res.end(buf);
            } else {
              console.error("GitCode file has no content field:", data);
-             return res.status(500).send("No content in GitCode response");
+             // fallback
            }
         } else {
            console.error("GitCode fetch failed:", r.status, await r.text());
-           return res.status(r.status).send("GitCode fetch failed");
+           // fallback
         }
      } catch (e) {
         console.error("Error fetching via GitCode API", e);
-        return res.status(500).send("Error fetching from GitCode API");
+        // fallback
      }
   }
 
