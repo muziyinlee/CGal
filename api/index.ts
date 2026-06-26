@@ -105,7 +105,8 @@ async function fetchDirContents(projectId: string, token: string, path: string, 
   if (currentDepth > maxDepth) return [];
   const headers: Record<string, string> = {};
   if (token) headers["PRIVATE-TOKEN"] = token;
-  const dirUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents${path ? `/${encodeURIComponent(path)}` : ''}${token ? `?access_token=${token}` : ''}`;
+  const encodedPath = path ? path.split('/').map(encodeURIComponent).join('/') : '';
+  const dirUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents${encodedPath ? `/${encodedPath}` : ''}${token ? `?access_token=${token}` : ''}`;
   const res = await fetch(dirUrl, { headers });
   if (!res.ok) return [];
   const items = await res.json();
@@ -150,7 +151,7 @@ app.get("/api/images", requireAuth, async (req, res) => {
             id: f.sha || f.id || fileName,
             originalName: fileName,
             md5: f.sha || f.id || fileName,
-            path: `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
+            path: f.download_url ? `/api/proxy_download?url=${encodeURIComponent(f.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(itemPath)}`,
             size: parseInt(f.size || 0, 10),
             mimetype: 'image/jpeg',
             folder: folder,
@@ -213,7 +214,8 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
 
     try {
       // Check if file exists first
-      const checkUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(gitPath)}`;
+      const encodedGitPath = gitPath.split('/').map(encodeURIComponent).join('/');
+      const checkUrl = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodedGitPath}`;
       const checkRes = await fetch(checkUrl, { headers: { "PRIVATE-TOKEN": token } });
       if (checkRes.ok) { // File exists
          finalName = `${base}_${Date.now()}${ext}`;
@@ -221,7 +223,8 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
       }
 
       const content = req.file.buffer.toString("base64");
-      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(gitPath)}`;
+      const encodedGitPathFinal = gitPath.split('/').map(encodeURIComponent).join('/');
+      const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodedGitPathFinal}`;
       
       const gitRes = await fetch(url, {
         method: "POST",
@@ -250,7 +253,7 @@ app.post("/api/upload", requireAdmin, upload.single("file"), async (req, res) =>
         image: { 
           id: responseData?.content?.sha || md5,
           originalName: finalName,
-          path: `/api/proxy_download?path=${encodeURIComponent(gitPath)}`,
+          path: responseData?.content?.download_url ? `/api/proxy_download?url=${encodeURIComponent(responseData.content.download_url)}` : `/api/proxy_download?path=${encodeURIComponent(gitPath)}`,
           folder: folder,
           createdAt: Date.now()
         } 
@@ -319,7 +322,8 @@ app.delete("/api/images/:id", requireAdmin, async (req, res) => {
 
       if (fileToDel) {
           const itemPath = fileToDel.path || fileToDel.name;
-          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(itemPath)}`, {
+          const encodedItemPath = itemPath.split('/').map(encodeURIComponent).join('/');
+          const delRes = await fetch(`https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodedItemPath}`, {
             method: "DELETE",
             headers: { "Content-Type": "application/json", "PRIVATE-TOKEN": token },
             body: JSON.stringify({
@@ -394,7 +398,8 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
   
   if (filePath && isActive) {
      try {
-        const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodeURIComponent(filePath)}`;
+        const encodedFilePath = filePath.split('/').map(encodeURIComponent).join('/');
+        const url = `https://api.gitcode.com/api/v5/repos/${projectId}/contents/${encodedFilePath}`;
         const headers: Record<string, string> = {};
         if (token) headers["PRIVATE-TOKEN"] = token;
         
@@ -414,10 +419,17 @@ app.get("/api/proxy_download", requireAuth, async (req, res) => {
              res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
              res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
              return res.end(buf);
+           } else {
+             console.error("GitCode file has no content field:", data);
+             return res.status(500).send("No content in GitCode response");
            }
+        } else {
+           console.error("GitCode fetch failed:", r.status, await r.text());
+           return res.status(r.status).send("GitCode fetch failed");
         }
      } catch (e) {
         console.error("Error fetching via GitCode API", e);
+        return res.status(500).send("Error fetching from GitCode API");
      }
   }
 
